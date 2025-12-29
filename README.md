@@ -33,11 +33,6 @@ Kafka/distributed commit log service in Go.
 - [ ] API versioning (more versions to implement)
 - [ ] Replication (first draft done)
 
-## Reading
-
-- [How the built-in service discovery and consensus works](https://medium.com/the-hoard/building-a-kafka-that-doesnt-depend-on-zookeeper-2c4701b6e961)
-- [How Kafka's storage internals work](https://medium.com/the-hoard/how-kafkas-storage-internals-work-3a29b02e026)
-
 ## Project Layout
 
 ```
