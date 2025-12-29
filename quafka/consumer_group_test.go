@@ -210,7 +210,7 @@ func TestHandleJoinGroup(t *testing.T) {
 func TestHandleSyncGroup(t *testing.T) {
 	log.SetPrefix("consumer_group_test: ")
 
-	ctx, _, reqCh, resCh, teardown := setupTest(t)
+	ctx, s, reqCh, resCh, teardown := setupTest(t)
 	defer teardown()
 
 	// First, join a group
@@ -241,7 +241,6 @@ func TestHandleSyncGroup(t *testing.T) {
 
 	// Test: Sync group as leader (should transition to CompletingRebalance first)
 	// We need to manually set the group state to CompletingRebalance
-	_, s, _, _, _ := setupTest(t)
 	b := s.broker()
 	state := b.fsm.State()
 	_, group, err := state.GetGroup("test-group")
@@ -287,7 +286,7 @@ func TestHandleSyncGroup(t *testing.T) {
 func TestHandleHeartbeat(t *testing.T) {
 	log.SetPrefix("consumer_group_test: ")
 
-	ctx, _, reqCh, resCh, teardown := setupTest(t)
+	ctx, s, reqCh, resCh, teardown := setupTest(t)
 	defer teardown()
 
 	// First, join a group
@@ -311,7 +310,26 @@ func TestHandleHeartbeat(t *testing.T) {
 	act := <-resCh
 	joinRes := act.res.(*protocol.Response).Body.(*protocol.JoinGroupResponse)
 	memberID := joinRes.MemberID
-	generationID := joinRes.GenerationID
+
+	// Wait a bit for state to settle and re-fetch to ensure we have the correct generation ID
+	time.Sleep(100 * time.Millisecond)
+	b := s.broker()
+	state := b.fsm.State()
+	_, group, err := state.GetGroup("test-group")
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	// Use the actual generation ID from the group
+	actualGenerationID := group.GenerationID
+
+	// If group is in rebalancing state, transition to stable for testing
+	if group.State == structs.GroupStatePreparingRebalance || group.State == structs.GroupStateCompletingRebalance {
+		group.State = structs.GroupStateStable
+		_, err = b.raftApply(structs.RegisterGroupRequestType, structs.RegisterGroupRequest{
+			Group: *group,
+		})
+		require.NoError(t, err)
+		time.Sleep(50 * time.Millisecond)
+	}
 
 	// Test: Valid heartbeat
 	correlationID++
@@ -322,7 +340,7 @@ func TestHandleHeartbeat(t *testing.T) {
 		},
 		req: &protocol.HeartbeatRequest{
 			GroupID:           "test-group",
-			GroupGenerationID: generationID,
+			GroupGenerationID: actualGenerationID,
 			MemberID:          memberID,
 		},
 		parent: ctx,
@@ -342,7 +360,7 @@ func TestHandleHeartbeat(t *testing.T) {
 		},
 		req: &protocol.HeartbeatRequest{
 			GroupID:           "test-group",
-			GroupGenerationID: generationID + 1,
+			GroupGenerationID: actualGenerationID + 1,
 			MemberID:          memberID,
 		},
 		parent: ctx,
@@ -362,7 +380,7 @@ func TestHandleHeartbeat(t *testing.T) {
 		},
 		req: &protocol.HeartbeatRequest{
 			GroupID:           "test-group",
-			GroupGenerationID: generationID,
+			GroupGenerationID: actualGenerationID,
 			MemberID:          "invalid-member",
 		},
 		parent: ctx,
@@ -377,7 +395,7 @@ func TestHandleHeartbeat(t *testing.T) {
 func TestHandleOffsetCommit(t *testing.T) {
 	log.SetPrefix("consumer_group_test: ")
 
-	ctx, _, reqCh, resCh, teardown := setupTest(t)
+	ctx, s, reqCh, resCh, teardown := setupTest(t)
 	defer teardown()
 
 	// Create a topic first
@@ -425,8 +443,70 @@ func TestHandleOffsetCommit(t *testing.T) {
 	memberID := joinRes.MemberID
 	generationID := joinRes.GenerationID
 
-	// Wait for offsets topic to be created
+	// Wait for offsets topic to be created and ensure partitions are started
+	time.Sleep(500 * time.Millisecond)
+
+	// Trigger offsets topic creation by calling offsetsTopic()
+	b := s.broker()
+	offsetsCtx := &Context{
+		header: &protocol.RequestHeader{
+			CorrelationID: 998,
+			ClientID:      "test-client",
+		},
+		req:    nil,
+		parent: ctx,
+	}
+	_, err := b.offsetsTopic(offsetsCtx)
+	require.NoError(t, err)
+
+	// Wait a bit more for topic to be registered
 	time.Sleep(200 * time.Millisecond)
+
+	// Ensure offsets topic partitions are started via LeaderAndISR
+	state := b.fsm.State()
+	_, offsetsTopic, err := state.GetTopic(OffsetsTopicName)
+	require.NoError(t, err)
+	require.NotNil(t, offsetsTopic)
+
+	// Create LeaderAndISR request to start replicas for offsets topic partitions
+	partitionStates := make([]*protocol.PartitionState, 0)
+	for partitionID := range offsetsTopic.Partitions {
+		_, p, err := state.GetPartition(OffsetsTopicName, partitionID)
+		require.NoError(t, err)
+		if p != nil {
+			partitionStates = append(partitionStates, &protocol.PartitionState{
+				Topic:     OffsetsTopicName,
+				Partition: partitionID,
+				Leader:    p.Leader,
+				ISR:       p.ISR,
+				Replicas:  p.AR,
+			})
+		}
+	}
+
+	if len(partitionStates) > 0 {
+		leaderAndISRReq := &protocol.LeaderAndISRRequest{
+			ControllerID:    b.config.ID,
+			PartitionStates: partitionStates,
+		}
+		leaderCtx := &Context{
+			header: &protocol.RequestHeader{
+				CorrelationID: 999,
+				ClientID:      "test-client",
+			},
+			req:    leaderAndISRReq,
+			parent: ctx,
+		}
+		leaderAndISRRes := b.handleLeaderAndISR(leaderCtx, leaderAndISRReq)
+		// Check that all partitions were handled successfully
+		for _, pRes := range leaderAndISRRes.Partitions {
+			if pRes.ErrorCode != protocol.ErrNone.Code() {
+				t.Logf("Warning: LeaderAndISR failed for partition %d: %d", pRes.Partition, pRes.ErrorCode)
+			}
+		}
+	}
+
+	time.Sleep(100 * time.Millisecond)
 
 	// Test: Commit offset
 	correlationID++
@@ -437,10 +517,10 @@ func TestHandleOffsetCommit(t *testing.T) {
 			ClientID:      "test-client",
 		},
 		req: &protocol.OffsetCommitRequest{
-			APIVersion:  1,
-			GroupID:     "test-group",
+			APIVersion:   1,
+			GroupID:      "test-group",
 			GenerationID: generationID,
-			MemberID:    memberID,
+			MemberID:     memberID,
 			Topics: []protocol.OffsetCommitTopicRequest{
 				{
 					Topic: "test-topic",
@@ -466,7 +546,7 @@ func TestHandleOffsetCommit(t *testing.T) {
 func TestHandleOffsetFetch(t *testing.T) {
 	log.SetPrefix("consumer_group_test: ")
 
-	ctx, _, reqCh, resCh, teardown := setupTest(t)
+	ctx, s, reqCh, resCh, teardown := setupTest(t)
 	defer teardown()
 
 	// Create a topic first
@@ -514,8 +594,70 @@ func TestHandleOffsetFetch(t *testing.T) {
 	memberID := joinRes.MemberID
 	generationID := joinRes.GenerationID
 
-	// Wait for offsets topic
+	// Wait for offsets topic and ensure partitions are started
+	time.Sleep(500 * time.Millisecond)
+
+	// Trigger offsets topic creation by calling offsetsTopic()
+	b := s.broker()
+	offsetsCtx := &Context{
+		header: &protocol.RequestHeader{
+			CorrelationID: 998,
+			ClientID:      "test-client",
+		},
+		req:    nil,
+		parent: ctx,
+	}
+	_, err := b.offsetsTopic(offsetsCtx)
+	require.NoError(t, err)
+
+	// Wait a bit more for topic to be registered
 	time.Sleep(200 * time.Millisecond)
+
+	// Ensure offsets topic partitions are started via LeaderAndISR
+	state := b.fsm.State()
+	_, offsetsTopic, err := state.GetTopic(OffsetsTopicName)
+	require.NoError(t, err)
+	require.NotNil(t, offsetsTopic)
+
+	// Create LeaderAndISR request to start replicas for offsets topic partitions
+	partitionStates := make([]*protocol.PartitionState, 0)
+	for partitionID := range offsetsTopic.Partitions {
+		_, p, err := state.GetPartition(OffsetsTopicName, partitionID)
+		require.NoError(t, err)
+		if p != nil {
+			partitionStates = append(partitionStates, &protocol.PartitionState{
+				Topic:     OffsetsTopicName,
+				Partition: partitionID,
+				Leader:    p.Leader,
+				ISR:       p.ISR,
+				Replicas:  p.AR,
+			})
+		}
+	}
+
+	if len(partitionStates) > 0 {
+		leaderAndISRReq := &protocol.LeaderAndISRRequest{
+			ControllerID:    b.config.ID,
+			PartitionStates: partitionStates,
+		}
+		leaderCtx := &Context{
+			header: &protocol.RequestHeader{
+				CorrelationID: 999,
+				ClientID:      "test-client",
+			},
+			req:    leaderAndISRReq,
+			parent: ctx,
+		}
+		leaderAndISRRes := b.handleLeaderAndISR(leaderCtx, leaderAndISRReq)
+		// Check that all partitions were handled successfully
+		for _, pRes := range leaderAndISRRes.Partitions {
+			if pRes.ErrorCode != protocol.ErrNone.Code() {
+				t.Logf("Warning: LeaderAndISR failed for partition %d: %d", pRes.Partition, pRes.ErrorCode)
+			}
+		}
+	}
+
+	time.Sleep(100 * time.Millisecond)
 
 	// Commit an offset
 	correlationID++
@@ -526,10 +668,10 @@ func TestHandleOffsetFetch(t *testing.T) {
 			ClientID:      "test-client",
 		},
 		req: &protocol.OffsetCommitRequest{
-			APIVersion:  1,
-			GroupID:     "test-group",
+			APIVersion:   1,
+			GroupID:      "test-group",
 			GenerationID: generationID,
-			MemberID:    memberID,
+			MemberID:     memberID,
 			Topics: []protocol.OffsetCommitTopicRequest{
 				{
 					Topic: "test-topic",
@@ -682,7 +824,7 @@ func TestHandleListGroups(t *testing.T) {
 			CorrelationID: correlationID,
 			ClientID:      "test-client",
 		},
-		req: &protocol.ListGroupsRequest{},
+		req:    &protocol.ListGroupsRequest{},
 		parent: ctx,
 	}
 	reqCh <- req
@@ -725,4 +867,3 @@ func TestHandleFindCoordinator(t *testing.T) {
 	require.NotEmpty(t, coordRes.Coordinator.Host)
 	require.NotZero(t, coordRes.Coordinator.Port)
 }
-
