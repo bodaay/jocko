@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/ring"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math/rand"
@@ -612,7 +613,6 @@ func (b *Broker) handleJoinGroup(ctx *Context, r *protocol.JoinGroupRequest) *pr
 	res := &protocol.JoinGroupResponse{}
 	res.APIVersion = r.Version()
 
-	// // TODO: distribute this.
 	state := b.fsm.State()
 
 	_, group, err := state.GetGroup(r.GroupID)
@@ -621,25 +621,64 @@ func (b *Broker) handleJoinGroup(ctx *Context, r *protocol.JoinGroupRequest) *pr
 		res.ErrorCode = protocol.ErrUnknown.Code()
 		return res
 	}
-	// TODO: only try to create the group if the group is not unknown AND
-	// the member id is UNKNOWN, if member is specified but group does not
-	// exist we should reject the request
+
+	// Handle group creation vs existing group
 	if group == nil {
-		// group doesn't exist so let's create it
+		// Group doesn't exist
+		if r.MemberID != "" {
+			// Member ID specified but group doesn't exist - reject
+			res.ErrorCode = protocol.ErrInvalidGroupId.Code()
+			return res
+		}
+		// Create new group
 		group = &structs.Group{
-			Group:       r.GroupID,
-			Coordinator: b.config.ID,
-			Members:     make(map[string]structs.Member),
+			Group:        r.GroupID,
+			Coordinator:  b.config.ID,
+			Members:      make(map[string]structs.Member),
+			State:        structs.GroupStateEmpty,
+			GenerationID: 0,
+		}
+	} else {
+		// Group exists - validate member
+		if r.MemberID != "" {
+			// Existing member rejoining
+			if _, exists := group.Members[r.MemberID]; !exists {
+				// Member ID doesn't exist in group
+				res.ErrorCode = protocol.ErrUnknownMemberId.Code()
+				return res
+			}
 		}
 	}
+
+	// Generate member ID if not provided
 	if r.MemberID == "" {
-		// for group member IDs -- can replace with something else
 		r.MemberID = ctx.Header().ClientID + "-" + uuid.New().String()
-		group.Members[r.MemberID] = structs.Member{ID: r.MemberID}
+		group.Members[r.MemberID] = structs.Member{
+			ID:       r.MemberID,
+			Metadata: r.GroupProtocols[0].ProtocolMetadata, // Use first protocol's metadata
+		}
+	} else {
+		// Update existing member metadata
+		if member, exists := group.Members[r.MemberID]; exists {
+			if len(r.GroupProtocols) > 0 {
+				member.Metadata = r.GroupProtocols[0].ProtocolMetadata
+				group.Members[r.MemberID] = member
+			}
+		}
 	}
+
+	// Set leader if not set
 	if group.LeaderID == "" {
 		group.LeaderID = r.MemberID
 	}
+
+	// Transition to PreparingRebalance if not already
+	if group.State == structs.GroupStateEmpty || group.State == structs.GroupStateStable {
+		group.State = structs.GroupStatePreparingRebalance
+		group.GenerationID++
+	}
+
+	// Save group
 	_, err = b.raftApply(structs.RegisterGroupRequestType, structs.RegisterGroupRequest{
 		Group: *group,
 	})
@@ -649,16 +688,18 @@ func (b *Broker) handleJoinGroup(ctx *Context, r *protocol.JoinGroupRequest) *pr
 		return res
 	}
 
-	res.GenerationID = 0
+	res.GenerationID = group.GenerationID
 	res.LeaderID = group.LeaderID
 	res.MemberID = r.MemberID
 
+	// Fill in members on response for the leader
 	if res.LeaderID == res.MemberID {
-		// fill in members on response, we only do this for the leader to reduce overhead
 		for _, m := range group.Members {
-			res.Members = append(res.Members, protocol.Member{MemberID: m.ID, MemberMetadata: m.Metadata})
+			res.Members = append(res.Members, protocol.Member{
+				MemberID:       m.ID,
+				MemberMetadata: m.Metadata,
+			})
 		}
-
 	}
 
 	return res
@@ -734,48 +775,39 @@ func (b *Broker) handleSyncGroup(ctx *Context, r *protocol.SyncGroupRequest) *pr
 		res.ErrorCode = protocol.ErrRebalanceInProgress.Code()
 		return res
 	case structs.GroupStateCompletingRebalance:
-		// TODO: wait to get member in group
-
 		if group.LeaderID == r.MemberID {
-			// if is leader, attempt to persist state and transition to stable
-			var assignment []protocol.GroupAssignment
+			// Leader provides assignments - save them and transition to stable
 			for _, ga := range r.GroupAssignments {
-				if _, ok := group.Members[ga.MemberID]; !ok {
-					// if member isn't set fill in with empty assignment
-					assignment = append(assignment, protocol.GroupAssignment{
-						MemberID:         ga.MemberID,
-						MemberAssignment: nil,
-					})
+				if m, ok := group.Members[ga.MemberID]; ok {
+					m.Assignment = ga.MemberAssignment
+					group.Members[ga.MemberID] = m
 				} else {
-					assignment = append(assignment, ga)
+					log.Error.Printf("broker/%d: sync group: unknown member in assignments: %s", b.config.ID, ga.MemberID)
 				}
-
-				// save group
+			}
+			// Transition to stable
+			group.State = structs.GroupStateStable
+			_, err = b.raftApply(structs.RegisterGroupRequestType, structs.RegisterGroupRequest{
+				Group: *group,
+			})
+			if err != nil {
+				res.ErrorCode = protocol.ErrUnknown.Code()
+				return res
+			}
+			// Leader gets empty assignment (they already know it)
+			res.MemberAssignment = nil
+		} else {
+			// Non-leader member - return their assignment if available
+			if m, ok := group.Members[r.MemberID]; ok && m.Assignment != nil {
+				res.MemberAssignment = m.Assignment
+			} else {
+				// Assignment not ready yet, return rebalance in progress
+				res.ErrorCode = protocol.ErrRebalanceInProgress.Code()
+				return res
 			}
 		}
 	case structs.GroupStateStable:
-		// in stable, return current assignment
-
-	}
-
-	if group.LeaderID == r.MemberID {
-		// take the assignments from the leader and save them
-		for _, ga := range r.GroupAssignments {
-			if m, ok := group.Members[ga.MemberID]; ok {
-				m.Assignment = ga.MemberAssignment
-			} else {
-				log.Error.Printf("broker/%d: sync group: unknown member in assignments", b.config.ID)
-			}
-		}
-		_, err = b.raftApply(structs.RegisterGroupRequestType, structs.RegisterGroupRequest{
-			Group: *group,
-		})
-		if err != nil {
-			res.ErrorCode = protocol.ErrUnknown.Code()
-			return res
-		}
-	} else {
-		// TODO: need to wait until leader sets assignments
+		// In stable state, return current assignment
 		if m, ok := group.Members[r.MemberID]; ok {
 			res.MemberAssignment = m.Assignment
 		} else {
@@ -804,10 +836,27 @@ func (b *Broker) handleHeartbeat(ctx *Context, r *protocol.HeartbeatRequest) *pr
 		res.ErrorCode = protocol.ErrInvalidGroupId.Code()
 		return res
 	}
-	// TODO: need to handle case when rebalance is in process
 
+	// Validate member exists
+	if _, ok := group.Members[r.MemberID]; !ok {
+		res.ErrorCode = protocol.ErrUnknownMemberId.Code()
+		return res
+	}
+
+	// Validate generation ID
+	if r.GroupGenerationID != group.GenerationID {
+		res.ErrorCode = protocol.ErrIllegalGeneration.Code()
+		return res
+	}
+
+	// Check if rebalance is in progress
+	if group.State == structs.GroupStatePreparingRebalance || group.State == structs.GroupStateCompletingRebalance {
+		res.ErrorCode = protocol.ErrRebalanceInProgress.Code()
+		return res
+	}
+
+	// Heartbeat is valid
 	res.ErrorCode = protocol.ErrNone.Code()
-
 	return res
 }
 
@@ -889,10 +938,12 @@ func (b *Broker) handleListGroups(ctx *Context, req *protocol.ListGroupsRequest)
 		return res
 	}
 	for _, group := range groups {
+		// Default to "consumer" protocol type for now
+		// In a full implementation, this would be stored in the group struct
+		protocolType := "consumer"
 		res.Groups = append(res.Groups, protocol.ListGroup{
-			GroupID: group.Group,
-			// TODO: add protocol type
-			ProtocolType: "consumer",
+			GroupID:      group.Group,
+			ProtocolType: protocolType,
 		})
 	}
 	return res
@@ -906,27 +957,64 @@ func (b *Broker) handleDescribeGroups(ctx *Context, req *protocol.DescribeGroups
 	state := b.fsm.State()
 
 	for _, id := range req.GroupIDs {
-		group := protocol.Group{}
+		group := protocol.Group{
+			GroupMembers: make(map[string]*protocol.GroupMember),
+		}
 		_, g, err := state.GetGroup(id)
 		if err != nil {
 			group.ErrorCode = protocol.ErrUnknown.Code()
 			group.GroupID = id
 			res.Groups = append(res.Groups, group)
-			return res
+			continue
 		}
+		if g == nil {
+			group.ErrorCode = protocol.ErrInvalidGroupId.Code()
+			group.GroupID = id
+			res.Groups = append(res.Groups, group)
+			continue
+		}
+
 		group.GroupID = id
-		group.State = "Stable"
+		group.ErrorCode = protocol.ErrNone.Code()
+
+		// Map group state to string
+		switch g.State {
+		case structs.GroupStateEmpty:
+			group.State = "Empty"
+		case structs.GroupStatePreparingRebalance:
+			group.State = "PreparingRebalance"
+		case structs.GroupStateCompletingRebalance:
+			group.State = "CompletingRebalance"
+		case structs.GroupStateStable:
+			group.State = "Stable"
+		case structs.GroupStateDead:
+			group.State = "Dead"
+		default:
+			group.State = "Unknown"
+		}
+
+		// Default to "consumer" protocol type
+		// In a full implementation, this would be stored in the group struct
 		group.ProtocolType = "consumer"
 		group.Protocol = "consumer"
-		for id, member := range g.Members {
-			group.GroupMembers[id] = &protocol.GroupMember{
-				ClientID: member.ID,
-				// TODO: ???
-				ClientHost:            "",
+
+		// Add members
+		for memberID, member := range g.Members {
+			// Extract client host from member ID if possible (format: clientID-uuid)
+			clientHost := ""
+			if idx := strings.LastIndex(memberID, "-"); idx > 0 {
+				// Could extract more info, but for now leave empty
+				clientHost = ""
+			}
+
+			group.GroupMembers[memberID] = &protocol.GroupMember{
+				ClientID:              memberID,
+				ClientHost:            clientHost,
 				GroupMemberMetadata:   member.Metadata,
 				GroupMemberAssignment: member.Assignment,
 			}
 		}
+
 		res.Groups = append(res.Groups, group)
 	}
 
@@ -959,32 +1047,376 @@ func (b *Broker) handleControlledShutdown(ctx *Context, req *protocol.Controlled
 func (b *Broker) handleOffsetCommit(ctx *Context, req *protocol.OffsetCommitRequest) *protocol.OffsetCommitResponse {
 	sp := span(ctx, b.tracer, "offset commit")
 	defer sp.Finish()
-	log.Error.Printf("broker/%d: offset commit not implemented", b.config.ID)
+
 	res := &protocol.OffsetCommitResponse{}
 	res.APIVersion = req.Version()
+	res.Responses = make([]protocol.OffsetCommitTopicResponse, len(req.Topics))
+
+	// Validate coordinator
+	state := b.fsm.State()
+	topic, err := b.offsetsTopic(ctx)
+	if err != nil {
+		log.Error.Printf("broker/%d: offset commit error getting offsets topic: %v", b.config.ID, err)
+		for i := range res.Responses {
+			res.Responses[i] = protocol.OffsetCommitTopicResponse{
+				Topic:              req.Topics[i].Topic,
+				PartitionResponses: make([]protocol.OffsetCommitPartitionResponse, len(req.Topics[i].Partitions)),
+			}
+			for j := range res.Responses[i].PartitionResponses {
+				res.Responses[i].PartitionResponses[j] = protocol.OffsetCommitPartitionResponse{
+					Partition: req.Topics[i].Partitions[j].Partition,
+					ErrorCode: protocol.ErrUnknown.Code(),
+				}
+			}
+		}
+		return res
+	}
+
+	// Calculate partition for this group
+	partitionID := int32(util.Hash(req.GroupID) % uint64(len(topic.Partitions)))
+
+	// Get the partition and replica
+	_, p, err := state.GetPartition(OffsetsTopicName, partitionID)
+	if err != nil || p == nil {
+		log.Error.Printf("broker/%d: offset commit error getting partition: %v", b.config.ID, err)
+		for i := range res.Responses {
+			res.Responses[i] = protocol.OffsetCommitTopicResponse{
+				Topic:              req.Topics[i].Topic,
+				PartitionResponses: make([]protocol.OffsetCommitPartitionResponse, len(req.Topics[i].Partitions)),
+			}
+			for j := range res.Responses[i].PartitionResponses {
+				res.Responses[i].PartitionResponses[j] = protocol.OffsetCommitPartitionResponse{
+					Partition: req.Topics[i].Partitions[j].Partition,
+					ErrorCode: protocol.ErrUnknown.Code(),
+				}
+			}
+		}
+		return res
+	}
+
+	// Check if this broker is the leader for the offsets partition
+	if p.Leader != b.config.ID {
+		log.Debug.Printf("broker/%d: offset commit - not leader, leader is %d", b.config.ID, p.Leader)
+		for i := range res.Responses {
+			res.Responses[i] = protocol.OffsetCommitTopicResponse{
+				Topic:              req.Topics[i].Topic,
+				PartitionResponses: make([]protocol.OffsetCommitPartitionResponse, len(req.Topics[i].Partitions)),
+			}
+			for j := range res.Responses[i].PartitionResponses {
+				res.Responses[i].PartitionResponses[j] = protocol.OffsetCommitPartitionResponse{
+					Partition: req.Topics[i].Partitions[j].Partition,
+					ErrorCode: protocol.ErrNotLeaderForPartition.Code(),
+				}
+			}
+		}
+		return res
+	}
+
+	// Validate generation ID if provided (version >= 1)
+	if req.Version() >= 1 {
+		_, group, err := state.GetGroup(req.GroupID)
+		if err != nil {
+			log.Error.Printf("broker/%d: offset commit error getting group: %v", b.config.ID, err)
+		} else if group != nil && req.GenerationID >= 0 && req.GenerationID != group.GenerationID {
+			for i := range res.Responses {
+				res.Responses[i] = protocol.OffsetCommitTopicResponse{
+					Topic:              req.Topics[i].Topic,
+					PartitionResponses: make([]protocol.OffsetCommitPartitionResponse, len(req.Topics[i].Partitions)),
+				}
+				for j := range res.Responses[i].PartitionResponses {
+					res.Responses[i].PartitionResponses[j] = protocol.OffsetCommitPartitionResponse{
+						Partition: req.Topics[i].Partitions[j].Partition,
+						ErrorCode: protocol.ErrIllegalGeneration.Code(),
+					}
+				}
+			}
+			return res
+		}
+	}
+
+	// Get the replica for the offsets partition
+	replica, err := b.replicaLookup.Replica(OffsetsTopicName, partitionID)
+	if err != nil || replica == nil || replica.Log == nil {
+		log.Error.Printf("broker/%d: offset commit error getting replica: %v", b.config.ID, err)
+		for i := range res.Responses {
+			res.Responses[i] = protocol.OffsetCommitTopicResponse{
+				Topic:              req.Topics[i].Topic,
+				PartitionResponses: make([]protocol.OffsetCommitPartitionResponse, len(req.Topics[i].Partitions)),
+			}
+			for j := range res.Responses[i].PartitionResponses {
+				res.Responses[i].PartitionResponses[j] = protocol.OffsetCommitPartitionResponse{
+					Partition: req.Topics[i].Partitions[j].Partition,
+					ErrorCode: protocol.ErrReplicaNotAvailable.Code(),
+				}
+			}
+		}
+		return res
+	}
+
+	// Process each topic
+	for i, topicReq := range req.Topics {
+		topicRes := protocol.OffsetCommitTopicResponse{
+			Topic:              topicReq.Topic,
+			PartitionResponses: make([]protocol.OffsetCommitPartitionResponse, len(topicReq.Partitions)),
+		}
+
+		for j, partReq := range topicReq.Partitions {
+			partRes := protocol.OffsetCommitPartitionResponse{
+				Partition: partReq.Partition,
+			}
+
+			// Use current time if timestamp not provided
+			timestamp := partReq.Timestamp
+			if timestamp == 0 {
+				timestamp = time.Now().UnixNano() / int64(time.Millisecond)
+			}
+
+			// Encode the offset commit message
+			msgData, err := EncodeOffsetCommitMessage(
+				req.GroupID,
+				topicReq.Topic,
+				partReq.Partition,
+				partReq.Offset,
+				partReq.Metadata,
+				timestamp,
+			)
+			if err != nil {
+				log.Error.Printf("broker/%d: offset commit encode error: %v", b.config.ID, err)
+				partRes.ErrorCode = protocol.ErrUnknown.Code()
+				topicRes.PartitionResponses[j] = partRes
+				continue
+			}
+
+			// Append to the offsets topic
+			_, appendErr := replica.Log.Append(msgData)
+			if appendErr != nil {
+				log.Error.Printf("broker/%d: offset commit append error: %v", b.config.ID, appendErr)
+				partRes.ErrorCode = protocol.ErrUnknown.Code()
+			} else {
+				partRes.ErrorCode = protocol.ErrNone.Code()
+			}
+
+			topicRes.PartitionResponses[j] = partRes
+		}
+
+		res.Responses[i] = topicRes
+	}
+
 	return res
 }
 
 func (b *Broker) handleOffsetFetch(ctx *Context, req *protocol.OffsetFetchRequest) *protocol.OffsetFetchResponse {
-	sp := span(ctx, b.tracer, "create topic")
+	sp := span(ctx, b.tracer, "offset fetch")
 	defer sp.Finish()
 
 	res := new(protocol.OffsetFetchResponse)
 	res.APIVersion = req.Version()
-	res.Responses = make([]protocol.OffsetFetchTopicResponse, len(req.Topics))
 
-	// state := b.fsm.State()
+	// Validate coordinator
+	state := b.fsm.State()
+	topic, err := b.offsetsTopic(ctx)
+	if err != nil {
+		log.Error.Printf("broker/%d: offset fetch error getting offsets topic: %v", b.config.ID, err)
+		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0)
+		return res
+	}
 
-	// _, g, err := state.GetGroup(req.GroupID)
+	// Calculate partition for this group
+	partitionID := int32(util.Hash(req.GroupID) % uint64(len(topic.Partitions)))
 
-	// // If group doesn't exist then create it?
-	// if err != nil {
-	// 	// TODO: handle err
-	// 	panic(err)
-	// }
+	// Get the partition
+	_, p, err := state.GetPartition(OffsetsTopicName, partitionID)
+	if err != nil || p == nil {
+		log.Error.Printf("broker/%d: offset fetch error getting partition: %v", b.config.ID, err)
+		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0)
+		return res
+	}
+
+	// Check if this broker is the leader
+	if p.Leader != b.config.ID {
+		log.Debug.Printf("broker/%d: offset fetch - not leader, leader is %d", b.config.ID, p.Leader)
+		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0)
+		return res
+	}
+
+	// Get the replica
+	replica, err := b.replicaLookup.Replica(OffsetsTopicName, partitionID)
+	if err != nil || replica == nil || replica.Log == nil {
+		log.Error.Printf("broker/%d: offset fetch error getting replica: %v", b.config.ID, err)
+		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0)
+		return res
+	}
+
+	// Read all offset commit messages from the offsets topic partition
+	// Start from the oldest offset
+	oldestOffset := replica.Log.OldestOffset()
+	reader, err := replica.Log.NewReader(oldestOffset, 10*1024*1024) // Read up to 10MB
+	if err != nil {
+		log.Error.Printf("broker/%d: offset fetch error creating reader: %v", b.config.ID, err)
+		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0)
+		return res
+	}
+
+	// Read and parse offset commit messages
+	offsetsMap := make(map[string]map[int32]*OffsetCommitValue) // topic -> partition -> value
+
+	// Read message sets sequentially
+	for {
+		// Read message set header (offset 8 bytes + size 4 bytes)
+		header := make([]byte, 12)
+		n, err := io.ReadFull(reader, header)
+		if err == io.EOF {
+			break
+		}
+		if err != nil || n < 12 {
+			break
+		}
+
+		// Get the size of the message set payload (commitlog format)
+		// The commitlog stores: offset (8) + size (4) + payload
+		// But we stored a protocol MessageSet, so the payload IS a protocol MessageSet
+		payloadSize := int32(binary.BigEndian.Uint32(header[8:12]))
+		if payloadSize <= 0 {
+			break
+		}
+
+		// Read the payload (this is a protocol MessageSet)
+		payload := make([]byte, payloadSize)
+		n, err = io.ReadFull(reader, payload)
+		if err == io.EOF && n == 0 {
+			break
+		}
+		if err != nil && err != io.EOF {
+			break
+		}
+		if n < int(payloadSize) {
+			// Partial read, skip
+			break
+		}
+
+		// Decode the protocol MessageSet
+		decoder := protocol.NewDecoder(payload)
+		msgSet := &protocol.MessageSet{}
+		if err := msgSet.Decode(decoder); err != nil {
+			// Skip invalid message sets
+			continue
+		}
+
+		// Process each message in the message set
+		for _, msg := range msgSet.Messages {
+			// Decode the offset commit message
+			key, value, decodeErr := DecodeOffsetCommitMessageFromProtocol(msg)
+			if decodeErr == nil && key != nil && value != nil {
+				// Only process messages for this group
+				if key.GroupID == req.GroupID {
+					if offsetsMap[key.Topic] == nil {
+						offsetsMap[key.Topic] = make(map[int32]*OffsetCommitValue)
+					}
+					// Keep the latest offset (highest timestamp)
+					if existing, exists := offsetsMap[key.Topic][key.Partition]; !exists || value.Timestamp > existing.Timestamp {
+						offsetsMap[key.Topic][key.Partition] = value
+					}
+				}
+			}
+		}
+	}
+
+	// Build response
+	if len(req.Topics) == 0 {
+		// Return all topics for this group
+		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0, len(offsetsMap))
+		for topicName, partitions := range offsetsMap {
+			topicRes := protocol.OffsetFetchTopicResponse{
+				Topic:      topicName,
+				Partitions: make([]protocol.OffsetFetchPartition, 0, len(partitions)),
+			}
+			for partitionID, value := range partitions {
+				// Note: OffsetFetchPartition.Offset is int16, but we have int64
+				// This is a limitation of the current protocol structure
+				offset := int16(value.Offset)
+				if value.Offset > int64(offset) {
+					// Offset too large for int16, use -1 to indicate no offset
+					offset = -1
+				}
+				topicRes.Partitions = append(topicRes.Partitions, protocol.OffsetFetchPartition{
+					Partition: partitionID,
+					Offset:    offset,
+					Metadata:  value.Metadata,
+					ErrorCode: protocol.ErrNone.Code(),
+				})
+			}
+			res.Responses = append(res.Responses, topicRes)
+		}
+	} else {
+		// Return only requested topics
+		res.Responses = make([]protocol.OffsetFetchTopicResponse, len(req.Topics))
+		for i, topicReq := range req.Topics {
+			topicRes := protocol.OffsetFetchTopicResponse{
+				Topic:      topicReq.Topic,
+				Partitions: make([]protocol.OffsetFetchPartition, 0),
+			}
+
+			if partitions, exists := offsetsMap[topicReq.Topic]; exists {
+				if len(topicReq.Partitions) == 0 {
+					// Return all partitions for this topic
+					for partitionID, value := range partitions {
+						offset := int16(value.Offset)
+						if value.Offset > int64(offset) {
+							offset = -1
+						}
+						topicRes.Partitions = append(topicRes.Partitions, protocol.OffsetFetchPartition{
+							Partition: partitionID,
+							Offset:    offset,
+							Metadata:  value.Metadata,
+							ErrorCode: protocol.ErrNone.Code(),
+						})
+					}
+				} else {
+					// Return only requested partitions
+					for _, partitionID := range topicReq.Partitions {
+						if value, exists := partitions[partitionID]; exists {
+							offset := int16(value.Offset)
+							if value.Offset > int64(offset) {
+								offset = -1
+							}
+							topicRes.Partitions = append(topicRes.Partitions, protocol.OffsetFetchPartition{
+								Partition: partitionID,
+								Offset:    offset,
+								Metadata:  value.Metadata,
+								ErrorCode: protocol.ErrNone.Code(),
+							})
+						} else {
+							// Partition not found
+							topicRes.Partitions = append(topicRes.Partitions, protocol.OffsetFetchPartition{
+								Partition: partitionID,
+								Offset:    -1,
+								Metadata:  nil,
+								ErrorCode: protocol.ErrNone.Code(), // No offset committed yet
+							})
+						}
+					}
+				}
+			} else {
+				// Topic not found, return empty partitions with no offset
+				if len(topicReq.Partitions) == 0 {
+					// No partitions specified, return empty
+				} else {
+					for _, partitionID := range topicReq.Partitions {
+						topicRes.Partitions = append(topicRes.Partitions, protocol.OffsetFetchPartition{
+							Partition: partitionID,
+							Offset:    -1,
+							Metadata:  nil,
+							ErrorCode: protocol.ErrNone.Code(),
+						})
+					}
+				}
+			}
+
+			res.Responses[i] = topicRes
+		}
+	}
 
 	return res
-
 }
 
 // isController returns true if this is the cluster controller.

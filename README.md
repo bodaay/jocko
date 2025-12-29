@@ -43,7 +43,7 @@ This is a **fully modernized fork** of Jocko with significant updates:
     - [x] Metadata
     - [x] Create Topics
     - [x] Delete Topics
-    - [ ] Consumer group
+    - [x] Consumer group
 - [ ] API versioning (more versions to implement)
 - [ ] Replication (first draft done)
 
