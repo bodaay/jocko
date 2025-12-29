@@ -73,12 +73,20 @@ func (d *ByteDecoder) Bool() (bool, error) {
 }
 
 func (d *ByteDecoder) Int8() (int8, error) {
+	if d.remaining() < 1 {
+		d.off = len(d.b)
+		return -1, ErrInsufficientData
+	}
 	tmp := int8(d.b[d.off])
 	d.off++
 	return tmp, nil
 }
 
 func (d *ByteDecoder) Int16() (int16, error) {
+	if d.remaining() < 2 {
+		d.off = len(d.b)
+		return -1, ErrInsufficientData
+	}
 	tmp := int16(Encoding.Uint16(d.b[d.off:]))
 	d.off += 2
 	return tmp, nil

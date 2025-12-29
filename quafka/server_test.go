@@ -25,9 +25,9 @@ func init() {
 }
 
 func TestProduceConsume(t *testing.T) {
-	// Skipped: Protocol decoder has bounds checking issue when decoding MetadataRequest
-	// from sarama client. Requires investigation into protocol/decoder.go.
-	t.Skip("Protocol decoder bounds error - needs investigation")
+	if testing.Short() {
+		t.Skip("Skipping multi-broker integration test in short mode")
+	}
 
 	sarama.Logger = log.NewStdLogger(log.New(log.DebugLevel, "server_test: sarama: "))
 
