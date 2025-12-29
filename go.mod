@@ -1,4 +1,4 @@
-module github.com/bodaay/jocko
+module github.com/bodaay/quafka
 
 go 1.23
 

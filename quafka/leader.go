@@ -11,11 +11,11 @@ import (
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	"github.com/hashicorp/serf/serf"
 
-	"github.com/bodaay/jocko/jocko/fsm"
-	"github.com/bodaay/jocko/jocko/metadata"
-	"github.com/bodaay/jocko/jocko/structs"
-	"github.com/bodaay/jocko/log"
-	"github.com/bodaay/jocko/protocol"
+	"github.com/bodaay/quafka/log"
+	"github.com/bodaay/quafka/protocol"
+	"github.com/bodaay/quafka/quafka/fsm"
+	"github.com/bodaay/quafka/quafka/metadata"
+	"github.com/bodaay/quafka/quafka/structs"
 )
 
 const (

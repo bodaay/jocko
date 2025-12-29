@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/raft"
 	stdopentracing "github.com/opentracing/opentracing-go"
 
-	"github.com/bodaay/jocko/jocko/structs"
+	"github.com/bodaay/quafka/quafka/structs"
 )
 
 func TestRegisterNode(t *testing.T) {

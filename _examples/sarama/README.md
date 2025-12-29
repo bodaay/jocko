@@ -1,18 +1,16 @@
-# Jocko used with a Sarama client example
+# Quafka used with a Sarama client example
 
-This example shows Sarama producing and consuming with Jocko.
+This example shows Sarama producing and consuming with Quafka.
 
 ## Setup
 
-```
-$ go get github.com/travisjeffery/jocko/...
-$ cd $GOPATH/src/github.com/travisjeffery/jocko/examples/sarama
+```bash
+git clone https://github.com/bodaay/quafka.git
+cd quafka/_examples/sarama
 ```
 
 ## Run
 
+```bash
+go run main.go
 ```
-$ go run main.go
-```
-
-

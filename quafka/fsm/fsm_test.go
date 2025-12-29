@@ -6,7 +6,7 @@ import (
 
 	stdopentracing "github.com/opentracing/opentracing-go"
 
-	"github.com/bodaay/jocko/jocko/structs"
+	"github.com/bodaay/quafka/quafka/structs"
 )
 
 func testStore(t *testing.T) *Store {

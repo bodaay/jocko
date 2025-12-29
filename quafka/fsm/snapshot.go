@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/ugorji/go/codec"
 
-	"github.com/bodaay/jocko/jocko/structs"
+	"github.com/bodaay/quafka/quafka/structs"
 )
 
 type snapshot struct {

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bodaay/jocko/jocko/config"
-	"github.com/bodaay/jocko/protocol"
+	"github.com/bodaay/quafka/protocol"
+	"github.com/bodaay/quafka/quafka/config"
 )
 
 const (

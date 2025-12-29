@@ -17,9 +17,9 @@ import (
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
 
-	"github.com/bodaay/jocko/jocko"
-	"github.com/bodaay/jocko/jocko/config"
-	"github.com/bodaay/jocko/protocol"
+	"github.com/bodaay/quafka/protocol"
+	jocko "github.com/bodaay/quafka/quafka"
+	"github.com/bodaay/quafka/quafka/config"
 )
 
 var (

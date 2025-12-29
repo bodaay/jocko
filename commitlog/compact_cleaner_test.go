@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/bodaay/jocko/commitlog"
-	"github.com/bodaay/jocko/protocol"
+	"github.com/bodaay/quafka/commitlog"
+	"github.com/bodaay/quafka/protocol"
 )
 
 func TestCompactCleaner(t *testing.T) {

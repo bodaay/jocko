@@ -22,14 +22,14 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 
-	"github.com/bodaay/jocko/commitlog"
-	"github.com/bodaay/jocko/jocko/config"
-	"github.com/bodaay/jocko/jocko/fsm"
-	"github.com/bodaay/jocko/jocko/metadata"
-	"github.com/bodaay/jocko/jocko/structs"
-	"github.com/bodaay/jocko/jocko/util"
-	"github.com/bodaay/jocko/log"
-	"github.com/bodaay/jocko/protocol"
+	"github.com/bodaay/quafka/commitlog"
+	"github.com/bodaay/quafka/log"
+	"github.com/bodaay/quafka/protocol"
+	"github.com/bodaay/quafka/quafka/config"
+	"github.com/bodaay/quafka/quafka/fsm"
+	"github.com/bodaay/quafka/quafka/metadata"
+	"github.com/bodaay/quafka/quafka/structs"
+	"github.com/bodaay/quafka/quafka/util"
 )
 
 var (

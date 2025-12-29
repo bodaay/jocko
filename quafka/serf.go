@@ -7,8 +7,8 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 
-	"github.com/bodaay/jocko/jocko/metadata"
-	"github.com/bodaay/jocko/log"
+	"github.com/bodaay/quafka/log"
+	"github.com/bodaay/quafka/quafka/metadata"
 )
 
 const (

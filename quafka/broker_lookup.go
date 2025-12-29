@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/raft"
 
-	"github.com/bodaay/jocko/jocko/metadata"
+	"github.com/bodaay/quafka/quafka/metadata"
 )
 
 type brokerLookup struct {

@@ -9,10 +9,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/bodaay/jocko/jocko"
-	"github.com/bodaay/jocko/jocko/structs"
-	"github.com/bodaay/jocko/mock"
-	"github.com/bodaay/jocko/testutil"
+	"github.com/bodaay/quafka/mock"
+	jocko "github.com/bodaay/quafka/quafka"
+	"github.com/bodaay/quafka/quafka/structs"
+	"github.com/bodaay/quafka/testutil"
 )
 
 func TestBroker_Replicate(t *testing.T) {

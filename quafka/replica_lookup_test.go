@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/bodaay/jocko/jocko/structs"
+	"github.com/bodaay/quafka/quafka/structs"
 )
 
 func TestNewReplicaLookup(t *testing.T) {

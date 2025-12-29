@@ -12,9 +12,9 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/ugorji/go/codec"
 
-	"github.com/bodaay/jocko/jocko/structs"
-	"github.com/bodaay/jocko/jocko/util"
-	"github.com/bodaay/jocko/log"
+	"github.com/bodaay/quafka/log"
+	"github.com/bodaay/quafka/quafka/structs"
+	"github.com/bodaay/quafka/quafka/util"
 )
 
 var (

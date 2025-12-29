@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bodaay/jocko/jocko/metadata"
+	"github.com/bodaay/quafka/quafka/metadata"
 )
 
 func TestNewBrokerLookup(t *testing.T) {

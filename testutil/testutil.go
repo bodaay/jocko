@@ -10,7 +10,7 @@ import (
 
 	dynaport "github.com/travisjeffery/go-dynaport"
 
-	"github.com/bodaay/jocko/jocko/config"
+	"github.com/bodaay/quafka/quafka/config"
 )
 
 func TestConfig(t *testing.T) (string, *config.Config) {

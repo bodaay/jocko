@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/bodaay/jocko/commitlog"
+	"github.com/bodaay/quafka/commitlog"
 )
 
 var (

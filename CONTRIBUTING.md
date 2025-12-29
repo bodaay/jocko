@@ -1,4 +1,4 @@
-# Contributing to Jocko
+# Contributing to Quafka
 
 ## Getting Started
 

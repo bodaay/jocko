@@ -10,10 +10,10 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bodaay/jocko/jocko"
-	"github.com/bodaay/jocko/jocko/config"
-	"github.com/bodaay/jocko/log"
-	"github.com/bodaay/jocko/protocol"
+	"github.com/bodaay/quafka/log"
+	"github.com/bodaay/quafka/protocol"
+	jocko "github.com/bodaay/quafka/quafka"
+	"github.com/bodaay/quafka/quafka/config"
 )
 
 const (

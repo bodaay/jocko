@@ -3,7 +3,7 @@ package mock
 import (
 	"strconv"
 
-	"github.com/bodaay/jocko/protocol"
+	"github.com/bodaay/quafka/protocol"
 )
 
 // Client for testing

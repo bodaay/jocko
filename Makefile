@@ -1,4 +1,4 @@
-BUILD_PATH := cmd/jocko/jocko
+BUILD_PATH := cmd/quafka/quafka
 DOCKER_TAG := latest
 
 all: test
@@ -10,8 +10,11 @@ deps:
 vet:
 	@go vet ./...
 
+lint:
+	@golangci-lint run
+
 build:
-	@go build -o $(BUILD_PATH) cmd/jocko/main.go
+	@go build -o $(BUILD_PATH) cmd/quafka/main.go
 
 release:
 	@which goreleaser 2>/dev/null || go install github.com/goreleaser/goreleaser@latest
@@ -21,7 +24,7 @@ clean:
 	@rm -rf dist
 
 build-docker:
-	@docker build -t travisjeffery/jocko:$(DOCKER_TAG) .
+	@docker build -t bodaay/quafka:$(DOCKER_TAG) .
 
 generate:
 	@go generate
@@ -32,4 +35,4 @@ test:
 test-race:
 	@go test -v -race -p=1 ./...
 
-.PHONY: test-race test build-docker clean release build deps vet all
+.PHONY: test-race test build-docker clean release build deps vet lint all

@@ -66,7 +66,7 @@ linters-settings:
     # - unusedwrite, composites, copylocks, nilness
 
   goimports:
-    local-prefixes: github.com/bodaay/jocko
+    local-prefixes: github.com/bodaay/quafka
 
   misspell:
     locale: US

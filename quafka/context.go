@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bodaay/jocko/protocol"
+	"github.com/bodaay/quafka/protocol"
 )
 
 type Context struct {

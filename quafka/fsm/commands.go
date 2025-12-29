@@ -3,8 +3,8 @@ package fsm
 import (
 	"fmt"
 
-	"github.com/bodaay/jocko/jocko/structs"
-	"github.com/bodaay/jocko/log"
+	"github.com/bodaay/quafka/log"
+	"github.com/bodaay/quafka/quafka/structs"
 )
 
 func init() {

@@ -5,8 +5,8 @@ import (
 
 	"github.com/cenkalti/backoff"
 
-	"github.com/bodaay/jocko/log"
-	"github.com/bodaay/jocko/protocol"
+	"github.com/bodaay/quafka/log"
+	"github.com/bodaay/quafka/protocol"
 )
 
 // Client is used to request other brokers.
