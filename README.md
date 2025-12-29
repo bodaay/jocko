@@ -1,88 +1,86 @@
 # Jocko
 
-![ci](https://github.com/travisjeffery/jocko/workflows/Go/badge.svg)
-[![gitter](https://badges.gitter.im/travisjeffery/jocko.svg)](https://gitter.im/travisjeffery/jocko?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![codecov](https://codecov.io/gh/travisjeffery/jocko/branch/master/graph/badge.svg)](https://codecov.io/gh/travisjeffery/jocko)
+![CI](https://github.com/bodaay/jocko/actions/workflows/ci.yml/badge.svg)
 
 Kafka/distributed commit log service in Go.
 
-## Goals of this project:
+## Goals
 
 - Implement Kafka in Go
 - Protocol compatible with Kafka so Kafka clients and services work with Jocko
 - Make operating simpler
 - Distribute a single binary
-- Use Serf for discovery, Raft for consensus (and remove the need to run ZooKeeper)
+- Use Serf for discovery, Raft for consensus (no ZooKeeper dependency)
 - Smarter configuration settings
     - Able to use percentages of disk space for retention policies rather than only bytes and time kept
     - Handling size configs when you change the number of partitions or add topics
-- Learn a lot and have fun
 
-## TODO
+## Status
 
 - [x] Producing
 - [x] Fetching
 - [x] Partition consensus and distribution
+- [x] Discovery
 - [ ] Protocol
     - [x] Produce
     - [x] Fetch
     - [x] Metadata
     - [x] Create Topics
     - [x] Delete Topics
-    - [ ] Consumer group [current task]
-- [x] Discovery
-- [ ] API versioning [more API versions to implement]
-- [ ] Replication [first draft done - testing heavily now]
-
-## Hiatus Writing Book
-
-I’m writing a book for PragProg called Building Distributed Services with Go. [You can sign up on this mailing list and get updated when the book’s available.](http://eepurl.com/dC5-l1) It walks you through building a distributed commit log from scratch. I hope it will help Jocko contributors and people who want to work on distributed services.
+    - [ ] Consumer group
+- [ ] API versioning (more versions to implement)
+- [ ] Replication (first draft done)
 
 ## Reading
 
-- [How Jocko's built-in service discovery and consensus works](https://medium.com/the-hoard/building-a-kafka-that-doesnt-depend-on-zookeeper-2c4701b6e961#.uamxtq1yz)
-- [How Jocko's (and Kafka's) storage internals work](https://medium.com/the-hoard/how-kafkas-storage-internals-work-3a29b02e026#.qfbssm978)
+- [How Jocko's built-in service discovery and consensus works](https://medium.com/the-hoard/building-a-kafka-that-doesnt-depend-on-zookeeper-2c4701b6e961)
+- [How Jocko's (and Kafka's) storage internals work](https://medium.com/the-hoard/how-kafkas-storage-internals-work-3a29b02e026)
 
 ## Project Layout
 
 ```
-├── broker        broker subsystem
-├── cmd           commands
-│   └── jocko     command to run a Jocko broker and manage topics
-├── commitlog     low-level commit log implementation
-├── examples      examples running/using Jocko
-│   ├── cluster   example booting up a 3-broker Jocko cluster
-│   └── sarama    example producing/consuming with Sarama
-├── protocol      golang implementation of Kafka's protocol
-├── prometheus    wrapper around Prometheus' client lib to handle metrics
-├── server        API subsystem
-└── testutil      test utils
-    └── mock      mocks of the various subsystems
+├── cmd/jocko      command to run a Jocko broker and manage topics
+├── commitlog      low-level commit log implementation
+├── jocko          broker, server, and core subsystems
+│   ├── config     configuration
+│   ├── fsm        finite state machine for Raft
+│   ├── metadata   broker metadata
+│   └── structs    data structures
+├── log            logging utilities
+├── mock           mocks for testing
+├── protocol       Kafka protocol implementation
+└── testutil       test utilities
 ```
 
 ## Building
 
-### Local
+### Prerequisites
 
-1. Clone Jocko
+- Go 1.23 or later
 
-    ```
-    $ go get github.com/travisjeffery/jocko
-    ```
+### Local Build
 
-1. Build Jocko
-
-    ```
-    $ cd $GOPATH/src/github.com/travisjeffery/jocko
-    $ make build
-    ```
-
-    (If you see an error about `dep` not being found, ensure that
-    `$GOPATH/bin` is in your `PATH`)
+```bash
+git clone https://github.com/bodaay/jocko.git
+cd jocko
+make build
+```
 
 ### Docker
 
-`docker build -t travisjeffery/jocko:latest .`
+```bash
+docker build -t jocko:latest .
+```
+
+### Running
+
+```bash
+# Start a single broker
+./cmd/jocko/jocko broker
+
+# Start with custom configuration
+./cmd/jocko/jocko broker --data-dir /tmp/jocko --broker-addr 127.0.0.1:9092
+```
 
 ## Contributing
 
@@ -91,11 +89,3 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting patches and the co
 ## License
 
 Jocko is under the MIT license, see the [LICENSE](LICENSE) file for details.
-
----
-
-- [travisjeffery.com](http://travisjeffery.com)
-- GitHub [@travisjeffery](https://github.com/travisjeffery)
-- Twitter [@travisjeffery](https://twitter.com/travisjeffery)
-
-- Medium [@travisjeffery](https://medium.com/@travisjeffery)
