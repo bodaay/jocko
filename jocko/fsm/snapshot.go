@@ -4,8 +4,9 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/raft"
-	"github.com/bodaay/jocko/jocko/structs"
 	"github.com/ugorji/go/codec"
+
+	"github.com/bodaay/jocko/jocko/structs"
 )
 
 type snapshot struct {

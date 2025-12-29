@@ -10,6 +10,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	opentracing "github.com/opentracing/opentracing-go"
+
 	"github.com/bodaay/jocko/jocko/config"
 	"github.com/bodaay/jocko/log"
 	"github.com/bodaay/jocko/protocol"

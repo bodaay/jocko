@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/raft"
 	dynaport "github.com/travisjeffery/go-dynaport"
+
 	"github.com/bodaay/jocko/jocko/config"
 
 	"github.com/uber/jaeger-lib/metrics"

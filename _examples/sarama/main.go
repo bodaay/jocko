@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+
 	"github.com/bodaay/jocko/jocko"
 	"github.com/bodaay/jocko/jocko/config"
 	"github.com/bodaay/jocko/log"

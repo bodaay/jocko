@@ -21,10 +21,10 @@ type Config struct {
 	Addr                          string
 	SerfLANConfig                 *serf.Config
 	RaftConfig                    *raft.Config
-	Bootstrap         bool
-	BootstrapExpect   int
-	StartAsLeader     bool // Deprecated: no longer has effect, leader election is handled by raft bootstrap
-	StartJoinAddrsLAN []string
+	Bootstrap                     bool
+	BootstrapExpect               int
+	StartAsLeader                 bool // Deprecated: no longer has effect, leader election is handled by raft bootstrap
+	StartJoinAddrsLAN             []string
 	StartJoinAddrsWAN             []string
 	NonVoter                      bool
 	RaftAddr                      string

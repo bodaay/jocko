@@ -9,6 +9,7 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/require"
+
 	"github.com/bodaay/jocko/jocko"
 	"github.com/bodaay/jocko/jocko/config"
 	"github.com/bodaay/jocko/log"
@@ -24,7 +25,9 @@ func init() {
 }
 
 func TestProduceConsume(t *testing.T) {
-	t.Skip()
+	// Skipped: Protocol decoder has bounds checking issue when decoding MetadataRequest
+	// from sarama client. Requires investigation into protocol/decoder.go.
+	t.Skip("Protocol decoder bounds error - needs investigation")
 
 	sarama.Logger = log.NewStdLogger(log.New(log.DebugLevel, "server_test: sarama: "))
 

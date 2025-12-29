@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	stdopentracing "github.com/opentracing/opentracing-go"
+
 	"github.com/bodaay/jocko/jocko/structs"
 )
 
@@ -215,7 +216,7 @@ func TestStore_RegisterGroup(t *testing.T) {
 		t.Fatalf("err: %s, group: %v", err, p)
 	}
 
-	if err := s.EnsureGroup(1, &structs.Group{Group: "test-group", Coordinator: coordinator, Members: map[string]structs.Member{"member": structs.Member{ID: "member"}}}); err != nil {
+	if err := s.EnsureGroup(1, &structs.Group{Group: "test-group", Coordinator: coordinator, Members: map[string]structs.Member{"member": {ID: "member"}}}); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 

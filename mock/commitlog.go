@@ -18,34 +18,34 @@ var (
 
 // CommitLog is a mock implementation of CommitLog.
 //
-//     func TestSomethingThatUsesCommitLog(t *testing.T) {
+//	    func TestSomethingThatUsesCommitLog(t *testing.T) {
 //
-//         // make and configure a mocked CommitLog
-//         mockedCommitLog := &CommitLog{
-//             AppendFunc: func(in1 []byte) (int64, error) {
-// 	               panic("TODO: mock out the Append method")
-//             },
-//             DeleteFunc: func() error {
-// 	               panic("TODO: mock out the Delete method")
-//             },
-//             NewReaderFunc: func(offset int64,maxBytes int32) (io.Reader, error) {
-// 	               panic("TODO: mock out the NewReader method")
-//             },
-//             NewestOffsetFunc: func() int64 {
-// 	               panic("TODO: mock out the NewestOffset method")
-//             },
-//             OldestOffsetFunc: func() int64 {
-// 	               panic("TODO: mock out the OldestOffset method")
-//             },
-//             TruncateFunc: func(in1 int64) error {
-// 	               panic("TODO: mock out the Truncate method")
-//             },
-//         }
+//	        // make and configure a mocked CommitLog
+//	        mockedCommitLog := &CommitLog{
+//	            AppendFunc: func(in1 []byte) (int64, error) {
+//		               panic("TODO: mock out the Append method")
+//	            },
+//	            DeleteFunc: func() error {
+//		               panic("TODO: mock out the Delete method")
+//	            },
+//	            NewReaderFunc: func(offset int64,maxBytes int32) (io.Reader, error) {
+//		               panic("TODO: mock out the NewReader method")
+//	            },
+//	            NewestOffsetFunc: func() int64 {
+//		               panic("TODO: mock out the NewestOffset method")
+//	            },
+//	            OldestOffsetFunc: func() int64 {
+//		               panic("TODO: mock out the OldestOffset method")
+//	            },
+//	            TruncateFunc: func(in1 int64) error {
+//		               panic("TODO: mock out the Truncate method")
+//	            },
+//	        }
 //
-//         // TODO: use mockedCommitLog in code that requires CommitLog
-//         //       and then make assertions.
+//	        // TODO: use mockedCommitLog in code that requires CommitLog
+//	        //       and then make assertions.
 //
-//     }
+//	    }
 type CommitLog struct {
 	// AppendFunc mocks the Append method.
 	AppendFunc func(in1 []byte) (int64, error)
@@ -143,7 +143,8 @@ func (mock *CommitLog) AppendCalled() bool {
 
 // AppendCalls gets all the calls that were made to Append.
 // Check the length with:
-//     len(mockedCommitLog.AppendCalls())
+//
+//	len(mockedCommitLog.AppendCalls())
 func (mock *CommitLog) AppendCalls() []struct {
 	In1 []byte
 } {
@@ -178,7 +179,8 @@ func (mock *CommitLog) DeleteCalled() bool {
 
 // DeleteCalls gets all the calls that were made to Delete.
 // Check the length with:
-//     len(mockedCommitLog.DeleteCalls())
+//
+//	len(mockedCommitLog.DeleteCalls())
 func (mock *CommitLog) DeleteCalls() []struct {
 } {
 	var calls []struct {
@@ -216,7 +218,8 @@ func (mock *CommitLog) NewReaderCalled() bool {
 
 // NewReaderCalls gets all the calls that were made to NewReader.
 // Check the length with:
-//     len(mockedCommitLog.NewReaderCalls())
+//
+//	len(mockedCommitLog.NewReaderCalls())
 func (mock *CommitLog) NewReaderCalls() []struct {
 	Offset   int64
 	MaxBytes int32
@@ -253,7 +256,8 @@ func (mock *CommitLog) NewestOffsetCalled() bool {
 
 // NewestOffsetCalls gets all the calls that were made to NewestOffset.
 // Check the length with:
-//     len(mockedCommitLog.NewestOffsetCalls())
+//
+//	len(mockedCommitLog.NewestOffsetCalls())
 func (mock *CommitLog) NewestOffsetCalls() []struct {
 } {
 	var calls []struct {
@@ -286,7 +290,8 @@ func (mock *CommitLog) OldestOffsetCalled() bool {
 
 // OldestOffsetCalls gets all the calls that were made to OldestOffset.
 // Check the length with:
-//     len(mockedCommitLog.OldestOffsetCalls())
+//
+//	len(mockedCommitLog.OldestOffsetCalls())
 func (mock *CommitLog) OldestOffsetCalls() []struct {
 } {
 	var calls []struct {
@@ -322,7 +327,8 @@ func (mock *CommitLog) TruncateCalled() bool {
 
 // TruncateCalls gets all the calls that were made to Truncate.
 // Check the length with:
-//     len(mockedCommitLog.TruncateCalls())
+//
+//	len(mockedCommitLog.TruncateCalls())
 func (mock *CommitLog) TruncateCalls() []struct {
 	In1 int64
 } {

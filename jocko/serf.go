@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
+
 	"github.com/bodaay/jocko/jocko/metadata"
 	"github.com/bodaay/jocko/log"
 )

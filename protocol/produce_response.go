@@ -38,7 +38,7 @@ func (r *ProduceResponse) Encode(e PacketEncoder) (err error) {
 			e.PutInt16(p.ErrorCode)
 			if r.APIVersion >= 2 {
 				e.PutInt64(p.BaseOffset)
-				e.PutInt64(int64(p.LogAppendTime.UnixNano() / int64(time.Millisecond)))
+				e.PutInt64(p.LogAppendTime.UnixNano() / int64(time.Millisecond))
 			}
 			if r.APIVersion >= 5 {
 				e.PutInt64(p.LogStartOffset)

@@ -9,16 +9,17 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hashicorp/memberlist"
 	"github.com/spf13/cobra"
 	gracefully "github.com/tj/go-gracefully"
-	"github.com/bodaay/jocko/jocko"
-	"github.com/bodaay/jocko/jocko/config"
-	"github.com/bodaay/jocko/protocol"
-	"github.com/hashicorp/memberlist"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
+
+	"github.com/bodaay/jocko/jocko"
+	"github.com/bodaay/jocko/jocko/config"
+	"github.com/bodaay/jocko/protocol"
 )
 
 var (

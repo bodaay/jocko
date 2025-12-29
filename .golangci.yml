@@ -1,0 +1,90 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - gosimple
+    - govet
+    - ineffassign
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+
+  disable:
+    # Disabled for legacy codebase - too many existing issues
+    - errcheck      # Many unchecked error returns in legacy code
+    - staticcheck   # Some deprecated APIs need gradual migration
+    - bodyclose
+    - prealloc
+    - exhaustive
+    - wrapcheck
+    - errorlint
+    - forcetypeassert
+    - goerr113
+    - nlreturn
+    - wsl
+    - gochecknoglobals
+    - gochecknoinits
+    - dupl
+    - funlen
+    - gocognit
+    - gocyclo
+    - lll
+    - nestif
+    - unused        # Some unused code may be intentional for future use
+
+linters-settings:
+  govet:
+    enable-all: false
+    enable:
+      - appends
+      - assign
+      - bools
+      - buildtag
+      - defers
+      - directive
+      - errorsas
+      - httpresponse
+      - ifaceassert
+      - loopclosure
+      - lostcancel
+      - nilfunc
+      - printf
+      - sigchanyzer
+      - slog
+      - sortslice
+      - stdmethods
+      - stringintconv
+      - structtag
+      - testinggoroutine
+      - tests
+      - unmarshal
+      - unreachable
+    # Disabled checks that are too noisy for legacy code:
+    # - unusedwrite, composites, copylocks, nilness
+
+  goimports:
+    local-prefixes: github.com/bodaay/jocko
+
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests
+    - path: _test\.go
+      linters:
+        - govet
+        - bodyclose
+        - unused
+
+    # Exclude mock files
+    - path: mock/
+      linters:
+        - unused
+
+  max-issues-per-linter: 50
+  max-same-issues: 10
+

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/raft"
+
 	"github.com/bodaay/jocko/jocko/metadata"
 )
 
@@ -32,15 +33,13 @@ func (b *brokerLookup) AddBroker(broker *metadata.Broker) {
 func (b *brokerLookup) BrokerByAddr(addr raft.ServerAddress) *metadata.Broker {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
-	svr, _ := b.addressToBroker[addr]
-	return svr
+	return b.addressToBroker[addr]
 }
 
 func (b *brokerLookup) BrokerByID(id raft.ServerID) *metadata.Broker {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
-	svr, _ := b.idToBroker[id]
-	return svr
+	return b.idToBroker[id]
 }
 
 func (b *brokerLookup) BrokerAddr(id raft.ServerID) (raft.ServerAddress, error) {

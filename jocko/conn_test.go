@@ -38,7 +38,7 @@ func (c *connPipe) Close() error {
 
 func (c *connPipe) Read(b []byte) (int, error) {
 	time.Sleep(time.Millisecond)
-	if t := c.rconn.readDeadline(); !t.IsZero() && t.Sub(time.Now()) <= (10*time.Millisecond) {
+	if t := c.rconn.readDeadline(); !t.IsZero() && time.Until(t) <= (10*time.Millisecond) {
 		return 0, &timeout{}
 	}
 	n, err := c.rconn.Read(b)
@@ -51,7 +51,7 @@ func (c *connPipe) Read(b []byte) (int, error) {
 
 func (c *connPipe) Write(b []byte) (int, error) {
 	time.Sleep(time.Millisecond)
-	if t := c.wconn.writeDeadline(); !t.IsZero() && t.Sub(time.Now()) <= (10*time.Millisecond) {
+	if t := c.wconn.writeDeadline(); !t.IsZero() && time.Until(t) <= (10*time.Millisecond) {
 		return 0, &timeout{}
 	}
 	return c.wconn.Write(b)

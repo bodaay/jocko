@@ -10,10 +10,11 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/raft"
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/ugorji/go/codec"
+
 	"github.com/bodaay/jocko/jocko/structs"
 	"github.com/bodaay/jocko/jocko/util"
 	"github.com/bodaay/jocko/log"
-	"github.com/ugorji/go/codec"
 )
 
 var (
@@ -882,7 +883,7 @@ func indexTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "index",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -901,7 +902,7 @@ func nodesTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "nodes",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -909,7 +910,7 @@ func nodesTableSchema() *memdb.TableSchema {
 					Field: "Node",
 				},
 			},
-			"meta": &memdb.IndexSchema{
+			"meta": {
 				Name:         "meta",
 				AllowMissing: true,
 				Unique:       false,
@@ -928,7 +929,7 @@ func topicsTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "topics",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -948,7 +949,7 @@ func partitionsTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "partitions",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:   "id",
 				Unique: true,
 				Indexer: &memdb.CompoundIndex{
@@ -958,7 +959,7 @@ func partitionsTableSchema() *memdb.TableSchema {
 					},
 				},
 			},
-			"partition": &memdb.IndexSchema{
+			"partition": {
 				Name:         "partition",
 				AllowMissing: false,
 				Unique:       false,
@@ -966,7 +967,7 @@ func partitionsTableSchema() *memdb.TableSchema {
 					Field: "Partition",
 				},
 			},
-			"topic": &memdb.IndexSchema{
+			"topic": {
 				Name:         "topic",
 				AllowMissing: false,
 				Unique:       false,
@@ -974,7 +975,7 @@ func partitionsTableSchema() *memdb.TableSchema {
 					Field: "Topic",
 				},
 			},
-			"leader": &memdb.IndexSchema{
+			"leader": {
 				Name:         "leader",
 				AllowMissing: false,
 				Unique:       false,
@@ -990,7 +991,7 @@ func groupTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "groups",
 		Indexes: map[string]*memdb.IndexSchema{
-			"id": &memdb.IndexSchema{
+			"id": {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
@@ -999,7 +1000,7 @@ func groupTableSchema() *memdb.TableSchema {
 					Lowercase: true,
 				},
 			},
-			"coordinator": &memdb.IndexSchema{
+			"coordinator": {
 				Name: "coordinator",
 				Indexer: &IntFieldIndex{
 					Field: "Coordinator",

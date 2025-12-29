@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	"github.com/hashicorp/serf/serf"
+
 	"github.com/bodaay/jocko/jocko/fsm"
 	"github.com/bodaay/jocko/jocko/metadata"
 	"github.com/bodaay/jocko/jocko/structs"
@@ -96,7 +97,7 @@ func (b *Broker) setupRaft() (err error) {
 		if !hasState {
 			configuration := raft.Configuration{
 				Servers: []raft.Server{
-					raft.Server{
+					{
 						ID:      b.config.RaftConfig.LocalID,
 						Address: trans.LocalAddr(),
 					},

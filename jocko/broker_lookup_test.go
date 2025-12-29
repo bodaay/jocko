@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/require"
+
 	"github.com/bodaay/jocko/jocko/metadata"
 )
 

@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/serf/serf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
+
 	"github.com/bodaay/jocko/commitlog"
 	"github.com/bodaay/jocko/jocko/config"
 	"github.com/bodaay/jocko/jocko/fsm"
@@ -295,7 +296,7 @@ func (b *Broker) handleDeleteTopics(ctx *Context, reqs *protocol.DeleteTopicsReq
 		err := b.withTimeout(reqs.Timeout, func() protocol.Error {
 			// TODO: this will delete from fsm -- need to delete associated partitions, etc.
 			_, err := b.raftApply(structs.DeregisterTopicRequestType, structs.DeregisterTopicRequest{
-				structs.Topic{
+				Topic: structs.Topic{
 					Topic: topic,
 				},
 			})
@@ -755,9 +756,9 @@ func (b *Broker) handleSyncGroup(ctx *Context, r *protocol.SyncGroupRequest) *pr
 		for _, ga := range r.GroupAssignments {
 			if m, ok := group.Members[ga.MemberID]; ok {
 				m.Assignment = ga.MemberAssignment
-		} else {
-			log.Error.Printf("broker/%d: sync group: unknown member in assignments", b.config.ID)
-		}
+			} else {
+				log.Error.Printf("broker/%d: sync group: unknown member in assignments", b.config.ID)
+			}
 		}
 		_, err = b.raftApply(structs.RegisterGroupRequestType, structs.RegisterGroupRequest{
 			Group: *group,
@@ -919,8 +920,7 @@ func (b *Broker) handleDescribeGroups(ctx *Context, req *protocol.DescribeGroups
 				GroupMemberAssignment: member.Assignment,
 			}
 		}
-		res.Groups = append(res.Groups)
-
+		res.Groups = append(res.Groups, group)
 	}
 
 	return res
@@ -992,7 +992,7 @@ func (b *Broker) isLeader() bool {
 // createPartition is used to add a partition across the cluster.
 func (b *Broker) createPartition(partition structs.Partition) error {
 	_, err := b.raftApply(structs.RegisterPartitionRequestType, structs.RegisterPartitionRequest{
-		partition,
+		Partition: partition,
 	})
 	return err
 }
@@ -1329,7 +1329,7 @@ type Replica struct {
 	sync.Mutex
 }
 
-func (r Replica) String() string {
+func (r *Replica) String() string {
 	return fmt.Sprintf("replica: %d {broker: %d, leader: %d, hw: %d, leo: %d}", r.Partition.ID, r.BrokerID, r.Partition.Leader, r.Hw, r.Leo)
 }
 

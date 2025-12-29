@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
+
 	"github.com/bodaay/jocko/log"
 	"github.com/bodaay/jocko/protocol"
 )

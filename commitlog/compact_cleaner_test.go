@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/bodaay/jocko/commitlog"
 	"github.com/bodaay/jocko/protocol"
 )
