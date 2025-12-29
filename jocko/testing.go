@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/mitchellh/go-testing-interface"
 	dynaport "github.com/travisjeffery/go-dynaport"
-	"github.com/travisjeffery/jocko/jocko/config"
+	"github.com/bodaay/jocko/jocko/config"
 
 	"github.com/uber/jaeger-lib/metrics"
 

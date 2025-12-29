@@ -21,14 +21,14 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-	"github.com/travisjeffery/jocko/commitlog"
-	"github.com/travisjeffery/jocko/jocko/config"
-	"github.com/travisjeffery/jocko/jocko/fsm"
-	"github.com/travisjeffery/jocko/jocko/metadata"
-	"github.com/travisjeffery/jocko/jocko/structs"
-	"github.com/travisjeffery/jocko/jocko/util"
-	"github.com/travisjeffery/jocko/log"
-	"github.com/travisjeffery/jocko/protocol"
+	"github.com/bodaay/jocko/commitlog"
+	"github.com/bodaay/jocko/jocko/config"
+	"github.com/bodaay/jocko/jocko/fsm"
+	"github.com/bodaay/jocko/jocko/metadata"
+	"github.com/bodaay/jocko/jocko/structs"
+	"github.com/bodaay/jocko/jocko/util"
+	"github.com/bodaay/jocko/log"
+	"github.com/bodaay/jocko/protocol"
 )
 
 var (

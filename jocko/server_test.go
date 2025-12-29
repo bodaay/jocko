@@ -12,10 +12,10 @@ import (
 	"github.com/hashicorp/consul/testutil/retry"
 	ti "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
-	"github.com/travisjeffery/jocko/jocko"
-	"github.com/travisjeffery/jocko/jocko/config"
-	"github.com/travisjeffery/jocko/log"
-	"github.com/travisjeffery/jocko/protocol"
+	"github.com/bodaay/jocko/jocko"
+	"github.com/bodaay/jocko/jocko/config"
+	"github.com/bodaay/jocko/log"
+	"github.com/bodaay/jocko/protocol"
 )
 
 const (

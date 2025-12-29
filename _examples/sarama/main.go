@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/Shopify/sarama"
-	"github.com/travisjeffery/jocko/jocko"
-	"github.com/travisjeffery/jocko/jocko/config"
-	"github.com/travisjeffery/jocko/log"
-	"github.com/travisjeffery/jocko/protocol"
+	"github.com/bodaay/jocko/jocko"
+	"github.com/bodaay/jocko/jocko/config"
+	"github.com/bodaay/jocko/log"
+	"github.com/bodaay/jocko/protocol"
 )
 
 type check struct {

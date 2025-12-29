@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/travisjeffery/jocko/jocko/structs"
+	"github.com/bodaay/jocko/jocko/structs"
 )
 
 func TestNewReplicaLookup(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/travisjeffery/jocko
+module github.com/bodaay/jocko
 
 go 1.12
 

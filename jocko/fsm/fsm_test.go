@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	stdopentracing "github.com/opentracing/opentracing-go"
-	"github.com/travisjeffery/jocko/jocko/structs"
+	"github.com/bodaay/jocko/jocko/structs"
 )
 
 func testStore(t *testing.T) *Store {
