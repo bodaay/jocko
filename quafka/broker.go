@@ -62,6 +62,10 @@ type Broker struct {
 	sync.RWMutex
 	config *config.Config
 
+	// ctx is the broker's lifecycle context, cancelled on shutdown
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	// readyForConsistentReads is used to track when the leader server is
 	// ready to serve consistent reads, after it has applied its initial
 	// barrier. This is updated atomically.
@@ -92,8 +96,11 @@ type Broker struct {
 
 // New is used to instantiate a new broker.
 func NewBroker(config *config.Config, tracer opentracing.Tracer) (*Broker, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	b := &Broker{
 		config:           config,
+		ctx:              ctx,
+		cancel:           cancel,
 		shutdownCh:       make(chan struct{}),
 		eventChLAN:       make(chan serf.Event, 256),
 		brokerLookup:     NewBrokerLookup(),
@@ -1201,6 +1208,11 @@ func (b *Broker) Shutdown() error {
 	b.shutdown = true
 	close(b.shutdownCh)
 
+	// Cancel the broker context to stop all background operations
+	if b.cancel != nil {
+		b.cancel()
+	}
+
 	if b.serf != nil {
 		b.serf.Shutdown()
 	}
@@ -1245,7 +1257,7 @@ func (b *Broker) becomeFollower(replica *Replica, cmd *protocol.PartitionState) 
 	r := NewReplicator(ReplicatorConfig{}, replica, conn)
 	replica.Replicator = r
 	if !b.config.DevMode {
-		r.Replicate()
+		r.Replicate(b.ctx)
 	}
 	return protocol.ErrNone
 }

@@ -1,6 +1,7 @@
 package jocko
 
 import (
+	"context"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -11,9 +12,9 @@ import (
 
 // Client is used to request other brokers.
 type client interface {
-	Fetch(fetchRequest *protocol.FetchRequest) (*protocol.FetchResponse, error)
-	CreateTopics(createRequest *protocol.CreateTopicRequests) (*protocol.CreateTopicsResponse, error)
-	LeaderAndISR(request *protocol.LeaderAndISRRequest) (*protocol.LeaderAndISRResponse, error)
+	FetchContext(ctx context.Context, fetchRequest *protocol.FetchRequest) (*protocol.FetchResponse, error)
+	CreateTopicsContext(ctx context.Context, createRequest *protocol.CreateTopicRequests) (*protocol.CreateTopicsResponse, error)
+	LeaderAndISRContext(ctx context.Context, request *protocol.LeaderAndISRRequest) (*protocol.LeaderAndISRResponse, error)
 	// others
 }
 
@@ -27,6 +28,7 @@ type Replicator struct {
 	done                chan struct{}
 	leader              client
 	backoff             *backoff.ExponentialBackOff
+	cancel              context.CancelFunc
 }
 
 type ReplicatorConfig struct {
@@ -52,18 +54,22 @@ func NewReplicator(config ReplicatorConfig, replica *Replica, leader client) *Re
 	return r
 }
 
-// Replicate start fetching messages from the leader and appending them to the local commit log.
-func (r *Replicator) Replicate() {
-	go r.fetchMessages()
-	go r.appendMessages()
+// Replicate starts fetching messages from the leader and appending them to the local commit log.
+// The provided context controls the lifetime of the replication goroutines.
+func (r *Replicator) Replicate(ctx context.Context) {
+	ctx, r.cancel = context.WithCancel(ctx)
+	go r.fetchMessages(ctx)
+	go r.appendMessages(ctx)
 }
 
-func (r *Replicator) fetchMessages() {
+func (r *Replicator) fetchMessages(ctx context.Context) {
 	var fetchRequest *protocol.FetchRequest
 	var fetchResponse *protocol.FetchResponse
 	var err error
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-r.done:
 			return
 		default:
@@ -79,42 +85,63 @@ func (r *Replicator) fetchMessages() {
 					}},
 				}},
 			}
-			fetchResponse, err = r.leader.Fetch(fetchRequest)
-			// TODO: probably shouldn't panic. just let this replica fall out of ISR.
+
+			// Use context with timeout for fetch operations
+			fetchCtx, cancel := context.WithTimeout(ctx, r.config.MaxWaitTime+5*time.Second)
+			fetchResponse, err = r.leader.FetchContext(fetchCtx, fetchRequest)
+			cancel()
+
 			if err != nil {
+				if ctx.Err() != nil {
+					return // Context cancelled, exit gracefully
+				}
 				log.Error.Printf("replicator: fetch messages error: %s", err)
-				goto BACKOFF
+				time.Sleep(r.backoff.NextBackOff())
+				continue
 			}
+
+			needBackoff := false
 			for _, resp := range fetchResponse.Responses {
 				for _, p := range resp.PartitionResponses {
 					if p.ErrorCode != protocol.ErrNone.Code() {
 						log.Error.Printf("replicator: partition response error: %d", p.ErrorCode)
-						goto BACKOFF
+						needBackoff = true
+						break
 					}
 					if p.RecordSet == nil {
-						goto BACKOFF
+						needBackoff = true
+						break
 					}
 					offset := int64(protocol.Encoding.Uint64(p.RecordSet[:8]))
 					if offset > r.offset {
-						r.msgs <- p.RecordSet
-						r.highwaterMarkOffset = p.HighWatermark
-						r.offset = offset
+						select {
+						case r.msgs <- p.RecordSet:
+							r.highwaterMarkOffset = p.HighWatermark
+							r.offset = offset
+						case <-ctx.Done():
+							return
+						}
 					}
+				}
+				if needBackoff {
+					break
 				}
 			}
 
-			r.backoff.Reset()
-			continue
-
-		BACKOFF:
-			time.Sleep(r.backoff.NextBackOff())
+			if needBackoff {
+				time.Sleep(r.backoff.NextBackOff())
+			} else {
+				r.backoff.Reset()
+			}
 		}
 	}
 }
 
-func (r *Replicator) appendMessages() {
+func (r *Replicator) appendMessages(ctx context.Context) {
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-r.done:
 			return
 		case msg := <-r.msgs:
@@ -129,6 +156,9 @@ func (r *Replicator) appendMessages() {
 
 // Close the replicator object when we are no longer following
 func (r *Replicator) Close() error {
+	if r.cancel != nil {
+		r.cancel()
+	}
 	close(r.done)
 	return nil
 }

@@ -2,6 +2,7 @@ package jocko
 
 import (
 	"bufio"
+	"context"
 	"net"
 	"runtime"
 	"sync"
@@ -81,8 +82,13 @@ func (c *Conn) Close() error { return c.conn.Close() }
 
 // LeaderAndISR sends a leader and ISR request and returns the response.
 func (c *Conn) LeaderAndISR(req *protocol.LeaderAndISRRequest) (*protocol.LeaderAndISRResponse, error) {
+	return c.LeaderAndISRContext(context.Background(), req)
+}
+
+// LeaderAndISRContext sends a leader and ISR request with context and returns the response.
+func (c *Conn) LeaderAndISRContext(ctx context.Context, req *protocol.LeaderAndISRRequest) (*protocol.LeaderAndISRResponse, error) {
 	var resp protocol.LeaderAndISRResponse
-	err := c.writeOperation(func(deadline time.Time, id int32) error {
+	err := c.writeOperationContext(ctx, func(deadline time.Time, id int32) error {
 		return c.writeRequest(req)
 	}, func(deadline time.Time, size int) error {
 		return c.readResponse(&resp, size, req.Version())
@@ -95,8 +101,13 @@ func (c *Conn) LeaderAndISR(req *protocol.LeaderAndISRRequest) (*protocol.Leader
 
 // CreateTopics sends a create topics request and returns the response.
 func (c *Conn) CreateTopics(req *protocol.CreateTopicRequests) (*protocol.CreateTopicsResponse, error) {
+	return c.CreateTopicsContext(context.Background(), req)
+}
+
+// CreateTopicsContext sends a create topics request with context and returns the response.
+func (c *Conn) CreateTopicsContext(ctx context.Context, req *protocol.CreateTopicRequests) (*protocol.CreateTopicsResponse, error) {
 	var resp protocol.CreateTopicsResponse
-	err := c.writeOperation(func(deadline time.Time, id int32) error {
+	err := c.writeOperationContext(ctx, func(deadline time.Time, id int32) error {
 		return c.writeRequest(req)
 	}, func(deadline time.Time, size int) error {
 		return c.readResponse(&resp, size, req.Version())
@@ -361,8 +372,13 @@ func (c *Conn) Metadata(req *protocol.MetadataRequest) (*protocol.MetadataRespon
 
 // Fetch sends a fetch request and returns the response.
 func (c *Conn) Fetch(req *protocol.FetchRequest) (*protocol.FetchResponse, error) {
+	return c.FetchContext(context.Background(), req)
+}
+
+// FetchContext sends a fetch request with context and returns the response.
+func (c *Conn) FetchContext(ctx context.Context, req *protocol.FetchRequest) (*protocol.FetchResponse, error) {
 	var resp protocol.FetchResponse
-	err := c.readOperation(func(deadline time.Time, id int32) error {
+	err := c.readOperationContext(ctx, func(deadline time.Time, id int32) error {
 		return c.writeRequest(req)
 	}, func(deadline time.Time, size int) error {
 		return c.readResponse(&resp, size, req.Version())
@@ -439,12 +455,39 @@ func (c *Conn) writeOperation(write wop, read rop) error {
 	return c.do(&c.wdeadline, write, read)
 }
 
+// readOperationContext performs a read operation with context support for cancellation.
+func (c *Conn) readOperationContext(ctx context.Context, write wop, read rop) error {
+	return c.doContext(ctx, &c.rdeadline, write, read)
+}
+
+// writeOperationContext performs a write operation with context support for cancellation.
+func (c *Conn) writeOperationContext(ctx context.Context, write wop, read rop) error {
+	return c.doContext(ctx, &c.wdeadline, write, read)
+}
+
 func (c *Conn) do(d *connDeadline, write wop, read rop) error {
+	return c.doContext(context.Background(), d, write, read)
+}
+
+func (c *Conn) doContext(ctx context.Context, d *connDeadline, write wop, read rop) error {
+	// Check if context is already cancelled
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	// Set deadline from context if available
+	if deadline, ok := ctx.Deadline(); ok {
+		d.setDeadline(deadline)
+	}
+
 	id, err := c.doRequest(d, write)
 	if err != nil {
 		return err
 	}
-	deadline, size, lock, err := c.waitResponse(d, id)
+
+	deadline, size, lock, err := c.waitResponseContext(ctx, d, id)
 	if err != nil {
 		return err
 	}
@@ -476,7 +519,19 @@ func (c *Conn) doRequest(d *connDeadline, write wop) (int32, error) {
 }
 
 func (c *Conn) waitResponse(d *connDeadline, id int32) (deadline time.Time, size int, lock *sync.Mutex, err error) {
+	return c.waitResponseContext(context.Background(), d, id)
+}
+
+func (c *Conn) waitResponseContext(ctx context.Context, d *connDeadline, id int32) (deadline time.Time, size int, lock *sync.Mutex, err error) {
 	for {
+		// Check context cancellation
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		default:
+		}
+
 		var rsz int32
 		var rid int32
 

@@ -2,6 +2,7 @@ package jocko_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"sync"
 	"testing"
@@ -34,7 +35,9 @@ func TestBroker_Replicate(t *testing.T) {
 		MinBytes:    5,
 		MaxWaitTime: 250 * time.Millisecond,
 	}, replica, l)
-	replicator.Replicate()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	replicator.Replicate(ctx)
 
 	testutil.WaitForResult(func() (bool, error) {
 		commitLog := c.Log()

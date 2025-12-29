@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/bodaay/quafka/protocol"
@@ -23,7 +24,14 @@ func (p *Client) Messages() [][]byte {
 	return p.msgs
 }
 
-func (p *Client) Fetch(fetchRequest *protocol.FetchRequest) (*protocol.FetchResponse, error) {
+// FetchContext implements the context-aware Fetch for the replicator client interface.
+func (p *Client) FetchContext(ctx context.Context, fetchRequest *protocol.FetchRequest) (*protocol.FetchResponse, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	if len(p.msgs) >= p.msgCount {
 		return &protocol.FetchResponse{}, nil
 	}
@@ -44,10 +52,22 @@ func (p *Client) Fetch(fetchRequest *protocol.FetchRequest) (*protocol.FetchResp
 	return response, nil
 }
 
-func (p *Client) CreateTopics(createRequest *protocol.CreateTopicRequests) (*protocol.CreateTopicsResponse, error) {
+// CreateTopicsContext implements the context-aware CreateTopics for the replicator client interface.
+func (p *Client) CreateTopicsContext(ctx context.Context, createRequest *protocol.CreateTopicRequests) (*protocol.CreateTopicsResponse, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
 	return nil, nil
 }
 
-func (p *Client) LeaderAndISR(request *protocol.LeaderAndISRRequest) (*protocol.LeaderAndISRResponse, error) {
+// LeaderAndISRContext implements the context-aware LeaderAndISR for the replicator client interface.
+func (p *Client) LeaderAndISRContext(ctx context.Context, request *protocol.LeaderAndISRRequest) (*protocol.LeaderAndISRResponse, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
 	return nil, nil
 }

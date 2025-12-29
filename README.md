@@ -17,6 +17,20 @@ Kafka/distributed commit log service in Go.
     - Able to use percentages of disk space for retention policies rather than only bytes and time kept
     - Handling size configs when you change the number of partitions or add topics
 
+## What's Changed (from Jocko)
+
+This is a **fully modernized fork** of Jocko with significant updates:
+
+- 🚀 **Go 1.23** (was 1.12)
+- 📦 **All dependencies updated** (sarama, raft, serf, uuid, etc.)
+- 🔧 **Bug fixes** - Protocol decoder, leader election, panic handling
+- 🧹 **Code quality** - Removed panics, gotos, debug prints
+- ⚡ **CI/CD** - GitHub Actions with linting
+
+👉 **See [CHANGELOG.md](CHANGELOG.md) for the complete list of changes.**
+
+*If you're migrating from Jocko, the CHANGELOG has a migration guide.*
+
 ## Status
 
 - [x] Producing
