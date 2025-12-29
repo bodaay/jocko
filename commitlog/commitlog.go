@@ -2,7 +2,6 @@ package commitlog
 
 import (
 	"encoding/binary"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -93,7 +92,7 @@ func (l *CommitLog) init() error {
 }
 
 func (l *CommitLog) open() error {
-	files, err := ioutil.ReadDir(l.Path)
+	files, err := os.ReadDir(l.Path)
 	if err != nil {
 		return errors.Wrap(err, "read dir failed")
 	}

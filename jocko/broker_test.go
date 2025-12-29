@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -465,7 +464,7 @@ func TestBroker_Run(t *testing.T) {
 				s.Shutdown()
 			}()
 
-			retry.Run(t, func(r *retry.R) {
+			NewRetry(t).Run(func(r *RetryReporter) {
 				if len(b.brokerLookup.Brokers()) != 1 {
 					r.Fatal("server not added")
 				}
@@ -540,7 +539,7 @@ func setupTest(t *testing.T) (
 	span.SetTag("name", t.Name())
 	span.SetTag("test", true)
 
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		if len(b.brokerLookup.Brokers()) != 1 {
 			r.Fatal("server not added")
 		}
@@ -718,9 +717,10 @@ func TestBroker_JoinLAN(t *testing.T) {
 
 	joinLAN(t, s1, s2)
 
-	retry.Run(t, func(r *retry.R) {
-		require.Equal(t, 2, len(s1.broker().LANMembers()))
-		require.Equal(t, 2, len(s2.broker().LANMembers()))
+	NewRetry(t).Run(func(r *RetryReporter) {
+		if len(s1.broker().LANMembers()) != 2 || len(s2.broker().LANMembers()) != 2 {
+			r.Fatal("expected 2 members each")
+		}
 	})
 }
 
@@ -746,7 +746,7 @@ func TestBroker_RegisterMember(t *testing.T) {
 	waitForLeader(t, s1, s2)
 
 	state := s1.broker().fsm.State()
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		_, node, err := state.GetNode(s2.config.ID)
 		if err != nil {
 			r.Fatalf("err: %v", err)
@@ -755,7 +755,7 @@ func TestBroker_RegisterMember(t *testing.T) {
 			r.Fatal("node not registered")
 		}
 	})
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		_, node, err := state.GetNode(s1.config.ID)
 		if err != nil {
 			r.Fatalf("err: %v", err)
@@ -789,7 +789,7 @@ func TestBroker_FailedMember(t *testing.T) {
 	state := s1.broker().fsm.State()
 
 	// Should be registered
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		_, node, err := state.GetNode(s2.broker().config.ID)
 		if err != nil {
 			r.Fatalf("err: %v", err)
@@ -825,7 +825,7 @@ func TestBroker_LeftMember(t *testing.T) {
 	state := s1.broker().fsm.State()
 
 	// should be registered
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		_, node, err := state.GetNode(s2.broker().config.ID)
 		if err != nil {
 			r.Fatalf("err: %v", err)
@@ -838,7 +838,7 @@ func TestBroker_LeftMember(t *testing.T) {
 	s2.broker().Leave()
 
 	// Should be deregistered
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		_, node, err := state.GetNode(s2.broker().config.ID)
 		if err != nil {
 			r.Fatalf("err: %v", err)
@@ -873,7 +873,7 @@ func TestBroker_ReapLeader(t *testing.T) {
 
 	state := s1.broker().fsm.State()
 
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		_, node, err := state.GetNode(s3.config.ID)
 		if err != nil {
 			r.Fatalf("err: %v", err)
@@ -890,7 +890,7 @@ func TestBroker_ReapLeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	retry.Run(t, func(t *retry.R) {
+	NewRetry(t).Run(func(t *RetryReporter) {
 		_, node, err := state.GetNode(s3.config.ID)
 		if err != nil {
 			t.Fatal(err)
@@ -918,7 +918,7 @@ func TestBroker_ReapMember(t *testing.T) {
 
 	state := s1.broker().fsm.State()
 
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		_, node, err := state.GetNode(s2.config.ID)
 		if err != nil {
 			r.Fatalf("err: %v", err)
@@ -984,7 +984,7 @@ func TestBroker_LeftLeader(t *testing.T) {
 	joinLAN(t, s3, s1)
 
 	for _, b := range brokers {
-		retry.Run(t, func(r *retry.R) {
+		NewRetry(t).Run(func(r *RetryReporter) {
 			r.Check(wantPeers(b, 3))
 		})
 	}
@@ -1020,10 +1020,10 @@ func TestBroker_LeftLeader(t *testing.T) {
 			continue
 		}
 		remain = b
-		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(b, 2)) })
+		NewRetry(t).Run(func(r *RetryReporter) { r.Check(wantPeers(b, 2)) })
 	}
 
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		for _, b := range brokers {
 			if leader == b && b.isLeader() {
 				r.Fatal("should have new leader")
@@ -1032,7 +1032,7 @@ func TestBroker_LeftLeader(t *testing.T) {
 	})
 
 	state := remain.fsm.State()
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		_, node, err := state.GetNode(leader.config.ID)
 		if err != nil {
 			r.Fatalf("err: %v", err)
@@ -1044,7 +1044,7 @@ func TestBroker_LeftLeader(t *testing.T) {
 }
 
 func waitForLeader(t *testing.T, servers ...*Server) {
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		var leader *Server
 		for _, s := range servers {
 			if raft.Leader == s.broker().raft.State() {
@@ -1066,7 +1066,7 @@ func joinLAN(t *testing.T, leader *Server, member *Server) {
 	if err := member.broker().JoinLAN(leaderAddr); err != protocol.ErrNone {
 		t.Fatal(err)
 	}
-	retry.Run(t, func(r *retry.R) {
+	NewRetry(t).Run(func(r *RetryReporter) {
 		if !seeEachOther(leader.broker().LANMembers(), member.broker().LANMembers(), leaderAddr, memberAddr) {
 			r.Fatalf("leader and member cannot see each other")
 		}

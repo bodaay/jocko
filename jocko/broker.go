@@ -15,12 +15,12 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/uuid"
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
+	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	"github.com/hashicorp/serf/serf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"github.com/bodaay/jocko/commitlog"
 	"github.com/bodaay/jocko/jocko/config"
 	"github.com/bodaay/jocko/jocko/fsm"
@@ -631,7 +631,7 @@ func (b *Broker) handleJoinGroup(ctx *Context, r *protocol.JoinGroupRequest) *pr
 	}
 	if r.MemberID == "" {
 		// for group member IDs -- can replace with something else
-		r.MemberID = ctx.Header().ClientID + "-" + uuid.NewV1().String()
+		r.MemberID = ctx.Header().ClientID + "-" + uuid.New().String()
 		group.Members[r.MemberID] = structs.Member{ID: r.MemberID}
 	}
 	if group.LeaderID == "" {
@@ -844,7 +844,7 @@ func (b *Broker) handleFetch(ctx *Context, r *protocol.FetchRequest) *protocol.F
 					// TODO: copy these bytes to outer bytes
 					nn, err := io.Copy(buf, rdr)
 					if err != nil && err != io.EOF {
-						log.Error.Printf("broker/%d: reader copy error", b.config.ID, err)
+						log.Error.Printf("broker/%d: reader copy error: %v", b.config.ID, err)
 						return protocol.ErrUnknown.WithErr(rdrErr)
 					}
 					n += int32(nn)
@@ -871,15 +871,11 @@ func (b *Broker) handleSaslHandshake(ctx *Context, req *protocol.SaslHandshakeRe
 }
 
 func (b *Broker) handleListGroups(ctx *Context, req *protocol.ListGroupsRequest) *protocol.ListGroupsResponse {
-	sp := span(ctx, b.tracer, "create topic")
+	sp := span(ctx, b.tracer, "list groups")
 	defer sp.Finish()
 	res := new(protocol.ListGroupsResponse)
 	res.APIVersion = req.Version()
 	state := b.fsm.State()
-
-	fmt.Println("list")
-	fmt.Println("list")
-	fmt.Println("list")
 
 	_, groups, err := state.GetGroups()
 	if err != nil {
@@ -897,15 +893,11 @@ func (b *Broker) handleListGroups(ctx *Context, req *protocol.ListGroupsRequest)
 }
 
 func (b *Broker) handleDescribeGroups(ctx *Context, req *protocol.DescribeGroupsRequest) *protocol.DescribeGroupsResponse {
-	sp := span(ctx, b.tracer, "create topic")
+	sp := span(ctx, b.tracer, "describe groups")
 	defer sp.Finish()
 	res := new(protocol.DescribeGroupsResponse)
 	res.APIVersion = req.Version()
 	state := b.fsm.State()
-
-	fmt.Println("describe")
-	fmt.Println("describe")
-	fmt.Println("describe")
 
 	for _, id := range req.GroupIDs {
 		group := protocol.Group{}
@@ -1087,7 +1079,7 @@ func (b *Broker) createTopic(ctx *Context, topic *protocol.CreateTopicRequest) p
 				// handle err and responses
 				return protocol.ErrUnknown.WithErr(err)
 			}
-			spew.Dump("leader and isr res", res)
+			log.Debug.Printf("broker/%d: leader and isr response: %+v", b.config.ID, res)
 		}
 	}
 	return protocol.ErrNone

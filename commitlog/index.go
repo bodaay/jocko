@@ -7,9 +7,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/edsrzf/mmap-go"
 	"github.com/pkg/errors"
-
-	"github.com/tysontate/gommap"
 )
 
 var (
@@ -28,7 +27,7 @@ const (
 
 type Index struct {
 	options
-	mmap     gommap.MMap
+	mmap     mmap.MMap
 	file     *os.File
 	mu       sync.RWMutex
 	position int64
@@ -87,7 +86,7 @@ func NewIndex(opts options) (idx *Index, err error) {
 		return nil, err
 	}
 
-	idx.mmap, err = gommap.Map(idx.file.Fd(), gommap.PROT_READ|gommap.PROT_WRITE, gommap.MAP_SHARED)
+	idx.mmap, err = mmap.Map(idx.file, mmap.RDWR, 0)
 	if err != nil {
 		return nil, errors.Wrap(err, "mmap file failed")
 	}
@@ -159,7 +158,7 @@ func (idx *Index) Sync() error {
 	if err := idx.file.Sync(); err != nil {
 		return errors.Wrap(err, "file sync failed")
 	}
-	if err := idx.mmap.Sync(gommap.MS_SYNC); err != nil {
+	if err := idx.mmap.Flush(); err != nil {
 		return errors.Wrap(err, "mmap sync failed")
 	}
 	return nil

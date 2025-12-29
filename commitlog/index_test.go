@@ -1,7 +1,6 @@
 package commitlog
 
 import (
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestIndex(t *testing.T) {
-	dir, err := ioutil.TempDir("", "commitlog-index")
+	dir, err := os.MkdirTemp("", "commitlog-index")
 	require.NoError(t, err)
 	path := filepath.Join(dir, "test.index")
 
@@ -75,7 +74,7 @@ func TestIndex(t *testing.T) {
 }
 
 func TestIndexScanner(t *testing.T) {
-	dir, err := ioutil.TempDir("", "commitlog-index")
+	dir, err := os.MkdirTemp("", "commitlog-index")
 	require.NoError(t, err)
 	path := filepath.Join(dir, "test.index")
 

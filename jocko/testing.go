@@ -2,13 +2,11 @@ package jocko
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/raft"
-	"github.com/mitchellh/go-testing-interface"
 	dynaport "github.com/travisjeffery/go-dynaport"
 	"github.com/bodaay/jocko/jocko/config"
 
@@ -22,7 +20,17 @@ var (
 	nodeNumber int32
 )
 
-func NewTestServer(t testing.T, cbBroker func(cfg *config.Config), cbServer func(cfg *config.Config)) (*Server, string) {
+// testingT is an interface that matches *testing.T
+type testingT interface {
+	Name() string
+	Fatalf(format string, args ...interface{})
+	Fatal(args ...interface{})
+	Errorf(format string, args ...interface{})
+	Error(args ...interface{})
+	Helper()
+}
+
+func NewTestServer(t testingT, cbBroker func(cfg *config.Config), cbServer func(cfg *config.Config)) (*Server, string) {
 	ports := dynaport.Get(4)
 	nodeID := atomic.AddInt32(&nodeNumber, 1)
 
@@ -48,7 +56,7 @@ func NewTestServer(t testing.T, cbBroker func(cfg *config.Config), cbServer func
 		panic(err)
 	}
 
-	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("jocko-test-server-%d", nodeID))
+	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("jocko-test-server-%d", nodeID))
 	if err != nil {
 		panic(err)
 	}
@@ -93,7 +101,7 @@ func NewTestServer(t testing.T, cbBroker func(cfg *config.Config), cbServer func
 	return NewServer(config, b, nil, tracer, closer.Close), tmpDir
 }
 
-func TestJoin(t testing.T, s1 *Server, other ...*Server) {
+func TestJoin(t testingT, s1 *Server, other ...*Server) {
 	addr := fmt.Sprintf("127.0.0.1:%d",
 		s1.config.SerfLANConfig.MemberlistConfig.BindPort)
 	for _, s2 := range other {
@@ -106,12 +114,13 @@ func TestJoin(t testing.T, s1 *Server, other ...*Server) {
 }
 
 // WaitForLeader waits for one of the servers to be leader, failing the test if no one is the leader. Returns the leader (if there is one) and non-leaders.
-func WaitForLeader(t testing.T, servers ...*Server) (*Server, []*Server) {
+func WaitForLeader(t testingT, servers ...*Server) (*Server, []*Server) {
 	tmp := struct {
 		leader    *Server
 		followers map[*Server]bool
 	}{nil, make(map[*Server]bool)}
-	retry.Run(t, func(r *retry.R) {
+
+	RetryFunc(t, func() error {
 		for _, s := range servers {
 			if raft.Leader == s.handler.(*Broker).raft.State() {
 				tmp.leader = s
@@ -120,12 +129,82 @@ func WaitForLeader(t testing.T, servers ...*Server) (*Server, []*Server) {
 			}
 		}
 		if tmp.leader == nil {
-			r.Fatal("no leader")
+			return fmt.Errorf("no leader")
 		}
+		return nil
 	})
+
 	followers := make([]*Server, 0, len(tmp.followers))
 	for f := range tmp.followers {
 		followers = append(followers, f)
 	}
 	return tmp.leader, followers
+}
+
+// RetryFunc retries a function until it succeeds or times out
+func RetryFunc(t testingT, fn func() error) {
+	t.Helper()
+	deadline := time.Now().Add(7 * time.Second)
+	for time.Now().Before(deadline) {
+		err := fn()
+		if err == nil {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Fatal("timeout waiting for condition")
+}
+
+// Retry is a helper for test retries
+type Retry struct {
+	t        testingT
+	deadline time.Time
+}
+
+// NewRetry creates a new retry helper
+func NewRetry(t testingT) *Retry {
+	return &Retry{
+		t:        t,
+		deadline: time.Now().Add(7 * time.Second),
+	}
+}
+
+// Run runs the retry function
+func (r *Retry) Run(fn func(rr *RetryReporter)) {
+	r.t.Helper()
+	for time.Now().Before(r.deadline) {
+		rr := &RetryReporter{}
+		fn(rr)
+		if !rr.failed {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	r.t.Fatal("timeout waiting for condition")
+}
+
+// RetryReporter is a reporter for retry attempts
+type RetryReporter struct {
+	failed bool
+	err    error
+}
+
+// Fatal marks the retry as failed
+func (r *RetryReporter) Fatal(args ...interface{}) {
+	r.failed = true
+	r.err = fmt.Errorf("%v", args)
+}
+
+// Fatalf marks the retry as failed with a formatted message
+func (r *RetryReporter) Fatalf(format string, args ...interface{}) {
+	r.failed = true
+	r.err = fmt.Errorf(format, args...)
+}
+
+// Check checks if an error occurred and marks failed if so
+func (r *RetryReporter) Check(err error) {
+	if err != nil {
+		r.failed = true
+		r.err = err
+	}
 }

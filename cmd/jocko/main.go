@@ -14,12 +14,11 @@ import (
 	"github.com/bodaay/jocko/jocko"
 	"github.com/bodaay/jocko/jocko/config"
 	"github.com/bodaay/jocko/protocol"
-	"github.com/uber/jaeger-lib/metrics"
-
 	"github.com/hashicorp/memberlist"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
+	"github.com/uber/jaeger-lib/metrics"
 )
 
 var (

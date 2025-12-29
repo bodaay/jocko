@@ -2,7 +2,6 @@ package testutil
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -52,7 +51,7 @@ func tempDir(t *testing.T, name string) string {
 		name = t.Name() + "-" + name
 	}
 	name = strings.Replace(name, "/", "_", -1)
-	d, err := ioutil.TempDir(tmpDir, name)
+	d, err := os.MkdirTemp(tmpDir, name)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

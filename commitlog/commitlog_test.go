@@ -2,7 +2,6 @@ package commitlog_test
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -147,7 +146,7 @@ func setup(t require.TestingT) *commitlog.CommitLog {
 func setupWithOptions(t require.TestingT, opts commitlog.Options) *commitlog.CommitLog {
 	var err error
 	if opts.Path == "" {
-		opts.Path, err = ioutil.TempDir("", "commitlogtest")
+		opts.Path, err = os.MkdirTemp("", "commitlogtest")
 		require.NoError(t, err)
 	}
 	l, err := commitlog.New(opts)

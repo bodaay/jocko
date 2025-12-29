@@ -3,12 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
-
 	"testing"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/bodaay/jocko/jocko"
 	"github.com/bodaay/jocko/jocko/config"
 	"github.com/bodaay/jocko/log"
@@ -34,23 +32,26 @@ var (
 
 func init() {
 	var err error
-	logDir, err = ioutil.TempDir("/tmp", "jocko-client-test")
+	logDir, err = os.MkdirTemp("/tmp", "jocko-client-test")
 	if err != nil {
 		panic(err)
 	}
 }
 
 func main() {
-	s, clean := setup()
-	defer clean()
+	s, tmpDir := setup()
+	defer func() {
+		s.Shutdown()
+		os.RemoveAll(tmpDir)
+	}()
 
-	config := sarama.NewConfig()
-	config.ChannelBufferSize = 1
-	config.Version = sarama.V0_10_0_1
-	config.Producer.Return.Successes = true
+	cfg := sarama.NewConfig()
+	cfg.ChannelBufferSize = 1
+	cfg.Version = sarama.V0_10_0_1
+	cfg.Producer.Return.Successes = true
 
 	brokers := []string{s.Addr().String()}
-	producer, err := sarama.NewSyncProducer(brokers, config)
+	producer, err := sarama.NewSyncProducer(brokers, cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +80,7 @@ func main() {
 	var totalChecked int
 	for partitionID := range pmap {
 		checked := 0
-		consumer, err := sarama.NewConsumer(brokers, config)
+		consumer, err := sarama.NewConsumer(brokers, cfg)
 		if err != nil {
 			panic(err)
 		}
@@ -116,18 +117,18 @@ func main() {
 	fmt.Printf("producer and consumer worked! %d messages ok\n", totalChecked)
 }
 
-func setup() (*jocko.Server, func()) {
-	c, cancel := jocko.NewTestServer(&testing.T{}, func(cfg *config.Config) {
+func setup() (*jocko.Server, string) {
+	s, tmpDir := jocko.NewTestServer(&testing.T{}, func(cfg *config.Config) {
 		cfg.Bootstrap = true
 		cfg.BootstrapExpect = 1
 		cfg.StartAsLeader = true
 	}, nil)
-	if err := c.Start(context.Background()); err != nil {
+	if err := s.Start(context.Background()); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to start cluster: %v\n", err)
 		os.Exit(1)
 	}
 
-	conn, err := jocko.Dial("tcp", c.Addr().String())
+	conn, err := jocko.Dial("tcp", s.Addr().String())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error connecting to broker: %v\n", err)
 		os.Exit(1)
@@ -151,9 +152,5 @@ func setup() (*jocko.Server, func()) {
 		}
 	}
 
-	return c, func() {
-		cancel()
-		c.Shutdown()
-		os.RemoveAll(logDir)
-	}
+	return s, tmpDir
 }

@@ -4,17 +4,17 @@ DOCKER_TAG := latest
 all: test
 
 deps:
-	@which dep 2>/dev/null || go get -u github.com/golang/dep/cmd/dep
-	@dep ensure -v
+	@go mod download
+	@go mod tidy
 
 vet:
-	@go list ./... | grep -v vendor | xargs go vet
+	@go vet ./...
 
-build: deps
+build:
 	@go build -o $(BUILD_PATH) cmd/jocko/main.go
 
 release:
-	@which goreleaser 2>/dev/null || go get -u github.com/goreleaser/goreleaser
+	@which goreleaser 2>/dev/null || go install github.com/goreleaser/goreleaser@latest
 	@goreleaser
 
 clean:

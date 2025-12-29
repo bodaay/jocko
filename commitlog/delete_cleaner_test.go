@@ -1,7 +1,6 @@
 package commitlog_test
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -44,7 +43,7 @@ func TestDeleteCleaner(t *testing.T) {
 		Timestamp: time.Now(),
 	}))
 
-	path, err := ioutil.TempDir("", "commitlog-delete-cleaner")
+	path, err := os.MkdirTemp("", "commitlog-delete-cleaner")
 	req.NoError(err)
 	defer os.RemoveAll(path)
 
