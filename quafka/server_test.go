@@ -183,7 +183,7 @@ func TestConsumerGroup(t *testing.T) {
 	// This test can be expanded to use IBM/sarama ConsumerGroup API for full integration testing.
 	// For now, basic protocol handlers are tested through the broker handlers.
 	// TODO: Add full integration test using sarama.ConsumerGroup
-	
+
 	// Basic test: verify consumer group handlers exist and are registered
 	s1, dir1 := quafka.NewTestServer(t, func(cfg *config.Config) {
 		cfg.Bootstrap = true

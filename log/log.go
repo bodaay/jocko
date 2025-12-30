@@ -6,8 +6,8 @@ package log
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	stdlog "log"
+	"log/slog"
 	"os"
 	"sync/atomic"
 )

@@ -241,4 +241,3 @@ func ReadOffsetCommitMessages(reader io.Reader) (map[string]map[int32]int64, err
 
 	return offsets, nil
 }
-

@@ -63,7 +63,7 @@ type Broker struct {
 	sync.RWMutex
 	config *config.Config
 
-	// ctx is the broker's lifecycle context, cancelled on shutdown
+	// ctx is the broker's lifecycle context, canceled on shutdown
 	ctx    context.Context
 	cancel context.CancelFunc
 

@@ -470,7 +470,7 @@ func (c *Conn) do(d *connDeadline, write wop, read rop) error {
 }
 
 func (c *Conn) doContext(ctx context.Context, d *connDeadline, write wop, read rop) error {
-	// Check if context is already cancelled
+	// Check if context is already canceled
 	select {
 	case <-ctx.Done():
 		return ctx.Err()

@@ -93,7 +93,7 @@ func (r *Replicator) fetchMessages(ctx context.Context) {
 
 			if err != nil {
 				if ctx.Err() != nil {
-					return // Context cancelled, exit gracefully
+					return // Context canceled, exit gracefully
 				}
 				log.Error.Printf("replicator: fetch messages error: %s", err)
 				time.Sleep(r.backoff.NextBackOff())
