@@ -9,7 +9,6 @@ All notable changes to Quafka (forked from Jocko) are documented here.
   - Only the first message per segment to be indexed on restart
   - `NewestOffset()` returning incorrect values (e.g., 1 instead of 41000)
   - Data appearing "lost" after application restart
-  - Reported by QSE-Service team
 
 ### Consumer Group Support ✨ NEW
 - **Full consumer group implementation** - Complete Kafka consumer group protocol support
