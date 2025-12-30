@@ -90,17 +90,21 @@ func TestCompactCleaner(t *testing.T) {
 
 	scanner = commitlog.NewSegmentScanner(cleaned[1])
 	count = 0
+	// After compaction, segment 1 should have both travisjeffery@2 and again_another@3
+	// since neither has a later version
+	expectedKeys := [][]byte{[]byte("travisjeffery"), []byte("again another")}
+	expectedValues := [][]byte{[]byte("two tj"), []byte("again another")}
 	for {
 		ms, err = scanner.Scan()
 		if err != nil {
 			break
 		}
 		req.Equal(1, len(ms.Messages()))
-		req.Equal([]byte("travisjeffery"), ms.Messages()[0].Key())
-		req.Equal([]byte("two tj"), ms.Messages()[0].Value())
+		req.Equal(expectedKeys[count], ms.Messages()[0].Key())
+		req.Equal(expectedValues[count], ms.Messages()[0].Value())
 		count++
 	}
-	req.Equal(1, count)
+	req.Equal(2, count) // Both messages should be retained
 
 }
 

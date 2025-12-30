@@ -124,11 +124,7 @@ loop:
 
 		position += size + msgSetHeaderLen
 		nextOffset++
-
-		_, err = s.log.Seek(size, 1)
-		if err != nil {
-			break loop
-		}
+		// Note: No seek needed - io.CopyN already advanced the file position
 	}
 	if err == io.EOF {
 		s.NextOffset = nextOffset
