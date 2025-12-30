@@ -1017,7 +1017,7 @@ func init() {
 	registerSchema(partitionsTableSchema)
 	registerSchema(groupTableSchema)
 
-	e := os.Getenv("JOCKODEBUG")
+	e := os.Getenv("QUAFKADEBUG")
 	if strings.Contains(e, "fsm=1") {
 		fsmVerboseLogs = true
 	}

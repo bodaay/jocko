@@ -1,7 +1,7 @@
 //go:build !race
 // +build !race
 
-package jocko
+package quafka
 
 import (
 	"bytes"
@@ -705,7 +705,7 @@ type fields struct {
 
 func newFields() fields {
 	return fields{
-		logDir: "/tmp/jocko/logs",
+		logDir: "/tmp/quafka/logs",
 		id:     1,
 	}
 }

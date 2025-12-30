@@ -1,4 +1,4 @@
-package jocko
+package quafka
 
 import (
 	"bytes"
@@ -51,13 +51,13 @@ const (
 func init() {
 	spew.Config.Indent = ""
 
-	e := os.Getenv("JOCKODEBUG")
+	e := os.Getenv("QUAFKADEBUG")
 	if strings.Contains(e, "broker=1") {
 		brokerVerboseLogs = true
 	}
 }
 
-// Broker represents a broker in a Jocko cluster, like a broker in a Kafka cluster.
+// Broker represents a broker in a Quafka cluster, like a broker in a Kafka cluster.
 type Broker struct {
 	sync.RWMutex
 	config *config.Config
@@ -73,7 +73,7 @@ type Broker struct {
 	// brokerLookup tracks servers in the local datacenter.
 	brokerLookup  *brokerLookup
 	replicaLookup *replicaLookup
-	// The raft instance is used among Jocko brokers within the DC to protect operations that require strong consistency.
+	// The raft instance is used among Quafka brokers within the DC to protect operations that require strong consistency.
 	raft          *raft.Raft
 	raftStore     *raftboltdb.BoltStore
 	raftTransport *raft.NetworkTransport
@@ -1250,7 +1250,7 @@ func (b *Broker) becomeFollower(replica *Replica, cmd *protocol.PartitionState) 
 	if broker == nil {
 		return protocol.ErrBrokerNotAvailable
 	}
-	conn, err := NewDialer(fmt.Sprintf("jocko-replicator-%d", b.config.ID)).Dial("tcp", broker.BrokerAddr)
+	conn, err := NewDialer(fmt.Sprintf("quafka-replicator-%d", b.config.ID)).Dial("tcp", broker.BrokerAddr)
 	if err != nil {
 		return protocol.ErrUnknown.WithErr(err)
 	}

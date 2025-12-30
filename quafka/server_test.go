@@ -1,4 +1,4 @@
-package jocko_test
+package quafka_test
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/bodaay/quafka/log"
 	"github.com/bodaay/quafka/protocol"
-	jocko "github.com/bodaay/quafka/quafka"
+	"github.com/bodaay/quafka/quafka"
 	"github.com/bodaay/quafka/quafka/config"
 )
 
@@ -31,7 +31,7 @@ func TestProduceConsume(t *testing.T) {
 
 	sarama.Logger = log.NewStdLogger(log.New(log.DebugLevel, "server_test: sarama: "))
 
-	s1, dir1 := jocko.NewTestServer(t, func(cfg *config.Config) {
+	s1, dir1 := quafka.NewTestServer(t, func(cfg *config.Config) {
 		cfg.Bootstrap = true
 	}, nil)
 	ctx1, cancel1 := context.WithCancel((context.Background()))
@@ -42,9 +42,9 @@ func TestProduceConsume(t *testing.T) {
 	// TODO: mv close into teardown
 	defer s1.Shutdown()
 
-	jocko.WaitForLeader(t, s1)
+	quafka.WaitForLeader(t, s1)
 
-	s2, dir2 := jocko.NewTestServer(t, func(cfg *config.Config) {
+	s2, dir2 := quafka.NewTestServer(t, func(cfg *config.Config) {
 		cfg.Bootstrap = false
 	}, nil)
 	ctx2, cancel2 := context.WithCancel((context.Background()))
@@ -54,7 +54,7 @@ func TestProduceConsume(t *testing.T) {
 	defer os.RemoveAll(dir2)
 	defer s2.Shutdown()
 
-	s3, dir3 := jocko.NewTestServer(t, func(cfg *config.Config) {
+	s3, dir3 := quafka.NewTestServer(t, func(cfg *config.Config) {
 		cfg.Bootstrap = false
 	}, nil)
 	ctx3, cancel3 := context.WithCancel((context.Background()))
@@ -64,8 +64,8 @@ func TestProduceConsume(t *testing.T) {
 	defer os.RemoveAll(dir3)
 	defer s3.Shutdown()
 
-	jocko.TestJoin(t, s1, s2, s3)
-	controller, others := jocko.WaitForLeader(t, s1, s2, s3)
+	quafka.TestJoin(t, s1, s2, s3)
+	controller, others := quafka.WaitForLeader(t, s1, s2, s3)
 
 	err = createTopic(t, controller, others...)
 	require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestProduceConsume(t *testing.T) {
 		brokers = append(brokers, o.Addr().String())
 	}
 
-	jocko.RetryFunc(t, func() error {
+	quafka.RetryFunc(t, func() error {
 		client, err := sarama.NewClient(brokers, cfg)
 		if err != nil {
 			return err
@@ -101,7 +101,7 @@ func TestProduceConsume(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	bValue := []byte("Hello from Jocko!")
+	bValue := []byte("Hello from Quafka!")
 	msgValue := sarama.ByteEncoder(bValue)
 	pPartition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
 		Topic: topic,
@@ -138,7 +138,7 @@ func TestProduceConsume(t *testing.T) {
 
 	time.Sleep(3 * time.Second)
 
-	controller, others = jocko.WaitForLeader(t, others...)
+	controller, others = quafka.WaitForLeader(t, others...)
 
 	time.Sleep(time.Second)
 
@@ -147,7 +147,7 @@ func TestProduceConsume(t *testing.T) {
 		brokers = append(brokers, o.Addr().String())
 	}
 
-	jocko.RetryFunc(t, func() error {
+	quafka.RetryFunc(t, func() error {
 		client, err := sarama.NewClient(brokers, cfg)
 		if err != nil {
 			return err
@@ -184,7 +184,7 @@ func TestConsumerGroup(t *testing.T) {
 func BenchmarkServer(b *testing.B) {
 	ctx, cancel := context.WithCancel((context.Background()))
 	defer cancel()
-	srv, dir := jocko.NewTestServer(b, func(cfg *config.Config) {
+	srv, dir := quafka.NewTestServer(b, func(cfg *config.Config) {
 		cfg.Bootstrap = true
 		cfg.BootstrapExpect = 1
 	}, nil)
@@ -192,7 +192,7 @@ func BenchmarkServer(b *testing.B) {
 	err := srv.Start(ctx)
 	require.NoError(b, err)
 	// Wait for raft leader election
-	jocko.WaitForLeader(b, srv)
+	quafka.WaitForLeader(b, srv)
 
 	err = createTopic(b, srv)
 	require.NoError(b, err)
@@ -209,7 +209,7 @@ func BenchmarkServer(b *testing.B) {
 		panic(err)
 	}
 
-	bValue := []byte("Hello from Jocko!")
+	bValue := []byte("Hello from Quafka!")
 	msgValue := sarama.ByteEncoder(bValue)
 
 	var msgCount int
@@ -254,8 +254,8 @@ type testingT interface {
 	Helper()
 }
 
-func createTopic(t testingT, s1 *jocko.Server, other ...*jocko.Server) error {
-	d := &jocko.Dialer{
+func createTopic(t testingT, s1 *quafka.Server, other ...*quafka.Server) error {
+	d := &quafka.Dialer{
 		Timeout:   10 * time.Second,
 		DualStack: true,
 		ClientID:  t.Name(),

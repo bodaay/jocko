@@ -1,4 +1,4 @@
-package jocko
+package quafka
 
 import (
 	"context"
@@ -16,7 +16,7 @@ const (
 	minTimeout = time.Duration(math.MinInt32) * time.Millisecond
 )
 
-// Dialer is like the net.Dialer API but for opening connections to Jocko brokers.
+// Dialer is like the net.Dialer API but for opening connections to Quafka brokers.
 type Dialer struct {
 	// Unique ID for client connections established by this Dialer.
 	ClientID string
@@ -43,7 +43,7 @@ type Dialer struct {
 }
 
 var (
-	defaultDialer = NewDialer("jocko")
+	defaultDialer = NewDialer("quafka")
 )
 
 // NewDialer creates a new dialer.

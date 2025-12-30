@@ -1,4 +1,4 @@
-package jocko
+package quafka
 
 import (
 	"fmt"
@@ -246,7 +246,7 @@ func (b *Broker) reconcileReaped(known map[int32]struct{}) error {
 		member := serf.Member{
 			Tags: map[string]string{
 				"id":   fmt.Sprintf("%d", node.Node),
-				"role": "jocko",
+				"role": "quafka",
 			},
 		}
 		if err := b.handleReapMember(member); err != nil {

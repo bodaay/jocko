@@ -11,8 +11,8 @@ When creating a pull request you should:
 
 - **Fork and clone the repo**:
     ```bash
-    git clone git@github.com:your-username/jocko.git
-    cd jocko
+    git clone git@github.com:your-username/Quafka.git
+    cd Quafka
     ```
 
 - **Install dependencies**:

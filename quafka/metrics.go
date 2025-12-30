@@ -1,4 +1,4 @@
-package jocko
+package quafka
 
 import "github.com/go-kit/kit/metrics/prometheus"
 

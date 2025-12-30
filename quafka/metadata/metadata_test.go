@@ -22,7 +22,7 @@ func TestIsBroker(t *testing.T) {
 }
 
 func testMinimum(t *testing.T) {
-	b, ok := IsBroker(serf.Member{Tags: map[string]string{"id": "1", "role": "jocko"}})
+	b, ok := IsBroker(serf.Member{Tags: map[string]string{"id": "1", "role": "quafka"}})
 	if !ok {
 		t.Fatal("is broker not ok")
 	}

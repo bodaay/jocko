@@ -1,4 +1,4 @@
-package jocko
+package quafka
 
 import (
 	"bufio"
@@ -11,7 +11,7 @@ import (
 	"github.com/bodaay/quafka/protocol"
 )
 
-// Conn implemenets net.Conn for connections to Jocko brokers. It's used as an internal client for replication fetches and leader and ISR requests.
+// Conn implements net.Conn for connections to Quafka brokers. It's used as an internal client for replication fetches and leader and ISR requests.
 type Conn struct {
 	conn          net.Conn
 	rlock         sync.Mutex

@@ -1,4 +1,4 @@
-package jocko
+package quafka
 
 import (
 	"context"
@@ -27,7 +27,7 @@ var (
 func init() {
 	spew.Config.Indent = ""
 
-	e := os.Getenv("JOCKODEBUG")
+	e := os.Getenv("QUAFKADEBUG")
 	if strings.Contains(e, "server=1") {
 		serverVerboseLogs = true
 	}

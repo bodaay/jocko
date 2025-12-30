@@ -18,13 +18,13 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/bodaay/quafka/protocol"
-	jocko "github.com/bodaay/quafka/quafka"
+	"github.com/bodaay/quafka/quafka"
 	"github.com/bodaay/quafka/quafka/config"
 )
 
 var (
 	cli = &cobra.Command{
-		Use:   "jocko",
+		Use:   "quafka",
 		Short: "Kafka in Go and more",
 	}
 
@@ -39,9 +39,9 @@ var (
 )
 
 func init() {
-	brokerCmd := &cobra.Command{Use: "broker", Short: "Run a Jocko broker", Run: run, Args: cobra.NoArgs}
+	brokerCmd := &cobra.Command{Use: "broker", Short: "Run a Quafka broker", Run: run, Args: cobra.NoArgs}
 	brokerCmd.Flags().StringVar(&brokerCfg.RaftAddr, "raft-addr", "127.0.0.1:9093", "Address for Raft to bind and advertise on")
-	brokerCmd.Flags().StringVar(&brokerCfg.DataDir, "data-dir", "/tmp/jocko", "A comma separated list of directories under which to store log files")
+	brokerCmd.Flags().StringVar(&brokerCfg.DataDir, "data-dir", "/tmp/quafka", "A comma separated list of directories under which to store log files")
 	brokerCmd.Flags().StringVar(&brokerCfg.Addr, "broker-addr", "0.0.0.0:9092", "Address for broker to bind on")
 	brokerCmd.Flags().Var(newMemberlistConfigValue(brokerCfg.SerfLANConfig.MemberlistConfig, "0.0.0.0:9094"), "serf-addr", "Address for Serf to bind on")
 	brokerCmd.Flags().BoolVar(&brokerCfg.Bootstrap, "bootstrap", false, "Initial cluster bootstrap (dangerous!)")
@@ -66,7 +66,7 @@ func init() {
 func run(cmd *cobra.Command, args []string) {
 	var err error
 
-	log.SetPrefix(fmt.Sprintf("jocko: node id: %d: ", brokerCfg.ID))
+	log.SetPrefix(fmt.Sprintf("quafka: node id: %d: ", brokerCfg.ID))
 
 	cfg := jaegercfg.Configuration{
 		Sampler: &jaegercfg.SamplerConfig{
@@ -82,7 +82,7 @@ func run(cmd *cobra.Command, args []string) {
 	jMetricsFactory := metrics.NullFactory
 
 	tracer, closer, err := cfg.New(
-		"jocko",
+		"quafka",
 		jaegercfg.Logger(jLogger),
 		jaegercfg.Metrics(jMetricsFactory),
 	)
@@ -90,13 +90,13 @@ func run(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	broker, err := jocko.NewBroker(brokerCfg, tracer)
+	broker, err := quafka.NewBroker(brokerCfg, tracer)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error starting broker: %v\n", err)
 		os.Exit(1)
 	}
 
-	srv := jocko.NewServer(brokerCfg, broker, nil, tracer, closer.Close)
+	srv := quafka.NewServer(brokerCfg, broker, nil, tracer, closer.Close)
 	if err := srv.Start(context.Background()); err != nil {
 		fmt.Fprintf(os.Stderr, "error starting server: %v\n", err)
 		os.Exit(1)
@@ -114,7 +114,7 @@ func run(cmd *cobra.Command, args []string) {
 }
 
 func createTopic(cmd *cobra.Command, args []string) {
-	conn, err := jocko.Dial("tcp", topicCfg.BrokerAddr)
+	conn, err := quafka.Dial("tcp", topicCfg.BrokerAddr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error connecting to broker: %v\n", err)
 		os.Exit(1)

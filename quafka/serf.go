@@ -1,4 +1,4 @@
-package jocko
+package quafka
 
 import (
 	"fmt"
@@ -20,7 +20,7 @@ const (
 func (b *Broker) setupSerf(config *serf.Config, ch chan serf.Event, path string) (*serf.Serf, error) {
 	config.Init()
 	config.NodeName = b.config.NodeName
-	config.Tags["role"] = "jocko"
+	config.Tags["role"] = "quafka"
 	config.Tags["id"] = fmt.Sprintf("%d", b.config.ID)
 	config.Logger = log.NewStdLogger(log.New(log.DebugLevel, fmt.Sprintf("serf/%d: ", b.config.ID)))
 	config.MemberlistConfig.Logger = log.NewStdLogger(log.New(log.DebugLevel, fmt.Sprintf("memberlist/%d: ", b.config.ID)))

@@ -14,7 +14,7 @@ import (
 )
 
 func TestConfig(t *testing.T) (string, *config.Config) {
-	dir := tempDir(t, "jocko")
+	dir := tempDir(t, "quafka")
 	config := config.DefaultConfig()
 	ports := dynaport.Get(3)
 	config.NodeName = uniqueNodeName(t.Name())
@@ -38,7 +38,7 @@ func TestConfig(t *testing.T) (string, *config.Config) {
 	return dir, config
 }
 
-var tmpDir = "/tmp/jocko-test"
+var tmpDir = "/tmp/quafka-test"
 
 func init() {
 	if err := os.MkdirAll(tmpDir, 0755); err != nil {

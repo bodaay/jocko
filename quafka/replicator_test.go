@@ -1,4 +1,4 @@
-package jocko_test
+package quafka_test
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bodaay/quafka/mock"
-	jocko "github.com/bodaay/quafka/quafka"
+	"github.com/bodaay/quafka/quafka"
 	"github.com/bodaay/quafka/quafka/structs"
 	"github.com/bodaay/quafka/testutil"
 )
@@ -20,7 +20,7 @@ func TestBroker_Replicate(t *testing.T) {
 	c := newCommitLog()
 	l := mock.NewClient(4)
 
-	replica := &jocko.Replica{
+	replica := &quafka.Replica{
 		Partition: structs.Partition{
 			Topic:  "test",
 			ID:     0,
@@ -31,7 +31,7 @@ func TestBroker_Replicate(t *testing.T) {
 		Log:      c,
 	}
 
-	replicator := jocko.NewReplicator(jocko.ReplicatorConfig{
+	replicator := quafka.NewReplicator(quafka.ReplicatorConfig{
 		MinBytes:    5,
 		MaxWaitTime: 250 * time.Millisecond,
 	}, replica, l)

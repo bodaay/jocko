@@ -11,7 +11,7 @@ import (
 
 	"github.com/bodaay/quafka/log"
 	"github.com/bodaay/quafka/protocol"
-	jocko "github.com/bodaay/quafka/quafka"
+	"github.com/bodaay/quafka/quafka"
 	"github.com/bodaay/quafka/quafka/config"
 )
 
@@ -34,7 +34,7 @@ var (
 
 func init() {
 	var err error
-	logDir, err = os.MkdirTemp("/tmp", "jocko-client-test")
+	logDir, err = os.MkdirTemp("/tmp", "quafka-client-test")
 	if err != nil {
 		panic(err)
 	}
@@ -61,7 +61,7 @@ func main() {
 	pmap := make(map[int32][]check)
 
 	for i := 0; i < messageCount; i++ {
-		message := fmt.Sprintf("Hello from Jocko #%d!", i)
+		message := fmt.Sprintf("Hello from Quafka #%d!", i)
 		partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
 			Topic: topic,
 			Value: sarama.StringEncoder(message),
@@ -119,8 +119,8 @@ func main() {
 	fmt.Printf("producer and consumer worked! %d messages ok\n", totalChecked)
 }
 
-func setup() (*jocko.Server, string) {
-	s, tmpDir := jocko.NewTestServer(&testing.T{}, func(cfg *config.Config) {
+func setup() (*quafka.Server, string) {
+	s, tmpDir := quafka.NewTestServer(&testing.T{}, func(cfg *config.Config) {
 		cfg.Bootstrap = true
 		cfg.BootstrapExpect = 1
 	}, nil)
@@ -131,7 +131,7 @@ func setup() (*jocko.Server, string) {
 	// Wait for leader election before making connections
 	time.Sleep(500 * time.Millisecond)
 
-	conn, err := jocko.Dial("tcp", s.Addr().String())
+	conn, err := quafka.Dial("tcp", s.Addr().String())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error connecting to broker: %v\n", err)
 		os.Exit(1)

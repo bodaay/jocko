@@ -1,4 +1,4 @@
-package jocko
+package quafka
 
 import (
 	"fmt"
@@ -49,7 +49,7 @@ func NewTestServer(t testingT, cbBroker func(cfg *config.Config), cbServer func(
 	jMetricsFactory := metrics.NullFactory
 
 	tracer, closer, err := cfg.New(
-		"jocko",
+		"quafka",
 		// jaegercfg.Logger(jLogger),
 		jaegercfg.Metrics(jMetricsFactory),
 	)
@@ -57,7 +57,7 @@ func NewTestServer(t testingT, cbBroker func(cfg *config.Config), cbServer func(
 		panic(err)
 	}
 
-	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("jocko-test-server-%d", nodeID))
+	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("quafka-test-server-%d", nodeID))
 	if err != nil {
 		panic(err)
 	}
