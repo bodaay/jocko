@@ -207,5 +207,5 @@ Comparison of Kafka features vs Quafka implementation status.
 
 ---
 
-*Last updated: December 2024*
+*Last updated: December 2025*
 
