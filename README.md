@@ -9,13 +9,15 @@ Kafka/distributed commit log service in Go.
 ## Goals
 
 - Implement Kafka in Go
-- Protocol compatible with Kafka so Kafka clients and services work with Quafka
+- **Protocol compatible with Kafka** so Kafka clients and services work with Quafka ✅
 - Make operating simpler
 - Distribute a single binary
 - Use Serf for discovery, Raft for consensus (no ZooKeeper dependency)
 - Smarter configuration settings
     - Able to use percentages of disk space for retention policies rather than only bytes and time kept
     - Handling size configs when you change the number of partitions or add topics
+
+> **Note:** Kafka client compatibility has been verified with [Sarama](https://github.com/IBM/sarama). See `_examples/sarama/` for a working example.
 
 ## What's Changed (from Jocko)
 

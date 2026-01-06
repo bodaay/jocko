@@ -5,6 +5,17 @@ All notable changes to Quafka (forked from Jocko) are documented here.
 ## [Unreleased] - 2025
 
 ### Critical Bug Fixes
+- **Fixed Kafka protocol compatibility** 🎉 - Standard Kafka clients (Sarama, etc.) now work with Quafka!
+  - The original Jocko project never had working Kafka client support (test was skipped)
+  - **Decoder fixes** (`protocol/decoder.go`):
+    - `StringArray()`, `Int32Array()`, `Int64Array()`, `ArrayLength()` now correctly handle `-1` as "null array"
+    - Fixed reading array length as signed int32 (was unsigned, causing 0xffffffff to overflow)
+    - Null arrays are used in MetadataRequest for "fetch all topics"
+  - **MetadataResponse v1+ compliance** (`protocol/metadata_response.go`):
+    - Added `Rack *string` to Broker struct (required for v1+)
+    - Added `IsInternal bool` to TopicMetadata struct (required for v1+)
+  - Verified with Sarama client: `producer and consumer worked! 15 messages ok`
+
 - **Fixed BuildIndex double-seek bug** - The `BuildIndex()` function in `commitlog/segment.go` had an erroneous `Seek(size, 1)` call after `io.CopyN` which already advances file position. This caused:
   - Only the first message per segment to be indexed on restart
   - `NewestOffset()` returning incorrect values (e.g., 1 instead of 41000)
