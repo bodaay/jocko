@@ -99,17 +99,29 @@ func TestProduceConsume(t *testing.T) {
 		return nil
 	})
 
-	producer, err := sarama.NewSyncProducer(brokers, cfg)
-	if err != nil {
-		panic(err)
-	}
+	// Retry producer creation and send - leader election may still be in progress
+	var producer sarama.SyncProducer
+	var pPartition int32
+	var offset int64
 	bValue := []byte("Hello from Quafka!")
 	msgValue := sarama.ByteEncoder(bValue)
-	pPartition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
-		Topic: topic,
-		Value: msgValue,
+
+	quafka.RetryFunc(t, func() error {
+		var err error
+		producer, err = sarama.NewSyncProducer(brokers, cfg)
+		if err != nil {
+			return err
+		}
+		pPartition, offset, err = producer.SendMessage(&sarama.ProducerMessage{
+			Topic: topic,
+			Value: msgValue,
+		})
+		if err != nil {
+			producer.Close()
+			return err
+		}
+		return nil
 	})
-	require.NoError(t, err)
 
 	consumer, err := sarama.NewConsumer(brokers, cfg)
 	require.NoError(t, err)
@@ -160,10 +172,19 @@ func TestProduceConsume(t *testing.T) {
 		return nil
 	})
 
-	consumer, err = sarama.NewConsumer(brokers, cfg)
-	require.NoError(t, err)
-	cPartition, err = consumer.ConsumePartition(topic, pPartition, 0)
-	require.NoError(t, err)
+	// Retry consume after failover - new leader may still be electing
+	quafka.RetryFunc(t, func() error {
+		consumer, err = sarama.NewConsumer(brokers, cfg)
+		if err != nil {
+			return err
+		}
+		cPartition, err = consumer.ConsumePartition(topic, pPartition, 0)
+		if err != nil {
+			consumer.Close()
+			return err
+		}
+		return nil
+	})
 
 	select {
 	case msg := <-cPartition.Messages():

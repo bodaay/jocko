@@ -87,6 +87,15 @@
 
 ### Low Priority
 
+#### TestProduceConsume Flakiness (Improved but not fully fixed)
+**Issue**: Multi-node test sometimes times out waiting for leader election after failover
+**Current Fix**: Added retry logic around produce and consume operations
+**Remaining Issue**: `RetryFunc` 7-second timeout may not be enough in some cases
+**Potential Fixes**:
+- Increase `RetryFunc` timeout for failover scenarios
+- Add explicit partition leader check before operations
+- Improve Raft leader election timing
+
 #### Performance
 - ~~Consider reducing offsets topic partitions~~ ✅ Done - configurable via `OffsetsTopicNumPartitions`
 - ~~Optimize replica creation for faster test startup~~ ✅ Done - replicas started in `offsetsTopic()`
