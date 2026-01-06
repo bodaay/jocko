@@ -25,6 +25,7 @@
 | OffsetFetchResponse v2+ | `protocol/offset_fetch_response.go` | Added trailing ErrorCode field |
 | HeartbeatResponse v1+ | `protocol/heartbeat_response.go` | Added ThrottleTime encoding |
 | API Versions | `protocol/api_versions.go` | Added OffsetCommitKey and OffsetFetchKey |
+| OffsetCommitRequest | `protocol/offset_commit_request.go` | Fixed missing Topic field, version-specific fields, range iteration |
 
 ### Consumer Group Handler Fixes (Jan 6, 2026)
 | Fix | File | Description |
@@ -72,13 +73,11 @@
 
 ### Medium Priority
 
-#### OffsetCommit Decoding Issue
-**Status**: New - observed in test logs
-**Problem**: OffsetCommit (api key 8) requests fail with "invalid array length"
-```
-server/1: correlation id: 13, api key: 8, client: sarama, size: 143: decode request failed: kafka: invalid array length
-```
-**Note**: Does not block consumer group test, but offsets may not persist correctly
+#### ~~OffsetCommit Decoding Issue~~ ✅ FIXED
+**Solution**: Fixed `protocol/offset_commit_request.go`:
+- Added missing Topic string field decode
+- Fixed range iteration to use index instead of value copies  
+- Added proper version-specific field handling (GenerationID, MemberID, RetentionTime, Timestamp)
 
 #### OffsetCommit Testing
 - Verify offset commits are stored correctly in `__consumer_offsets`
@@ -137,7 +136,7 @@ QUAFKADEBUG=1 go test -v -run TestConsumerGroup ./quafka/
 3. **TestConsumerGroup PASSES** - Consumer group integration with Sarama is working
 4. **Basic produce/consume with Sarama works** - confirms protocol fixes are sound
 5. **QSE-Service compatibility**: Protocol changes don't affect commitlog direct usage
-6. **OffsetCommit decoding**: There's still an issue with OffsetCommit request decoding (api key 8) - non-blocking but needs investigation
+6. **OffsetCommit decoding**: ✅ Fixed - OffsetCommit requests now decode and process correctly
 
 ---
 
