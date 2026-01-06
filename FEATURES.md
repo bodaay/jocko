@@ -3,9 +3,13 @@
 Comparison of Kafka features vs Quafka implementation status.
 
 **Legend:**
-- ✅ Implemented
+- ✅ Implemented & Verified (tested with Kafka client)
+- 🧪 Implemented & Unit Tested (not verified with real client)
 - 🚧 Partial / In Progress
 - ❌ Not Implemented
+
+> **Note:** After audit (Jan 2025), we found the FEATURES.md was created by reading code, 
+> not by actual testing. Only features marked ✅ have been verified with Sarama client.
 
 ---
 
@@ -40,18 +44,20 @@ Comparison of Kafka features vs Quafka implementation status.
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Find Coordinator | ✅ | Locate group coordinator broker |
-| Join Group | ✅ | Consumer joins a consumer group |
-| Sync Group | ✅ | Synchronize partition assignments |
-| Leave Group | ✅ | Consumer leaves the group |
-| Heartbeat | ✅ | Keep consumer session alive |
-| List Groups | ✅ | List all consumer groups |
-| Describe Groups | ✅ | Get group members and state |
+| Find Coordinator | 🧪 | Locate group coordinator broker |
+| Join Group | 🧪 | Consumer joins a consumer group |
+| Sync Group | 🧪 | Synchronize partition assignments |
+| Leave Group | 🚧 | Consumer leaves the group (no test) |
+| Heartbeat | 🧪 | Keep consumer session alive |
+| List Groups | 🧪 | List all consumer groups |
+| Describe Groups | 🧪 | Get group members and state |
 | Delete Groups | ❌ | Remove inactive consumer groups |
-| Offset Commit | ✅ | Commit consumed offsets |
-| Offset Fetch | ✅ | Retrieve committed offsets |
-| Consumer Rebalance | ✅ | Redistribute partitions on member change |
+| Offset Commit | 🧪 | Commit consumed offsets |
+| Offset Fetch | 🧪 | Retrieve committed offsets |
+| Consumer Rebalance | 🚧 | Redistribute partitions on member change |
 | Static Membership | ❌ | Persistent consumer identity across restarts |
+
+> ⚠️ **Consumer group APIs are unit tested but NOT verified with real Kafka client (Sarama ConsumerGroup)**
 
 ---
 
@@ -128,41 +134,41 @@ Comparison of Kafka features vs Quafka implementation status.
 
 ## Protocol API Coverage
 
-| API Key | Name | Status | Description |
-|---------|------|--------|-------------|
-| 0 | Produce | ✅ | Send messages |
-| 1 | Fetch | ✅ | Consume messages |
-| 2 | ListOffsets | ✅ | Get partition offsets |
-| 3 | Metadata | ✅ | Get cluster/topic metadata |
-| 4 | LeaderAndIsr | ✅ | Internal: leader management |
-| 5 | StopReplica | ✅ | Internal: stop replica |
-| 6 | UpdateMetadata | ✅ | Internal: propagate metadata |
-| 7 | ControlledShutdown | 🚧 | Graceful shutdown |
-| 8 | OffsetCommit | ✅ | Commit consumer offsets |
-| 9 | OffsetFetch | ✅ | Fetch consumer offsets |
-| 10 | FindCoordinator | ✅ | Find group coordinator |
-| 11 | JoinGroup | ✅ | Join consumer group |
-| 12 | Heartbeat | ✅ | Consumer heartbeat |
-| 13 | LeaveGroup | ✅ | Leave consumer group |
-| 14 | SyncGroup | ✅ | Sync group assignments |
-| 15 | DescribeGroups | ✅ | Describe consumer groups |
-| 16 | ListGroups | ✅ | List all groups |
-| 17 | SaslHandshake | 🚧 | SASL auth negotiation |
-| 18 | ApiVersions | ✅ | Get supported API versions |
-| 19 | CreateTopics | ✅ | Create topics |
-| 20 | DeleteTopics | ✅ | Delete topics |
-| 21 | DeleteRecords | ❌ | Delete records before offset |
-| 22 | InitProducerId | ❌ | Init transactional producer |
-| 23 | OffsetForLeaderEpoch | ❌ | Get offset for leader epoch |
-| 24-28 | Transactions | ❌ | Transaction APIs |
-| 29-31 | ACLs | ❌ | Access control APIs |
-| 32 | DescribeConfigs | 🚧 | Get configurations |
-| 33 | AlterConfigs | 🚧 | Modify configurations |
-| 34-35 | LogDirs | ❌ | Log directory APIs |
-| 36 | SaslAuthenticate | ❌ | SASL authentication |
-| 37 | CreatePartitions | ❌ | Add partitions |
-| 38-41 | DelegationTokens | ❌ | Token-based auth |
-| 42 | DeleteGroups | ❌ | Delete consumer groups |
+| API Key | Name | Status | Verified | Description |
+|---------|------|--------|----------|-------------|
+| 0 | Produce | ✅ | Sarama ✓ | Send messages |
+| 1 | Fetch | ✅ | Sarama ✓ | Consume messages |
+| 2 | ListOffsets | 🧪 | Unit test | Get partition offsets |
+| 3 | Metadata | ✅ | Sarama ✓ | Get cluster/topic metadata |
+| 4 | LeaderAndIsr | 🧪 | Unit test | Internal: leader management |
+| 5 | StopReplica | 🚧 | No test | Internal: stop replica |
+| 6 | UpdateMetadata | 🚧 | No test | Internal: propagate metadata |
+| 7 | ControlledShutdown | 🚧 | No test | Graceful shutdown |
+| 8 | OffsetCommit | 🧪 | Unit test | Commit consumer offsets |
+| 9 | OffsetFetch | 🧪 | Unit test | Fetch consumer offsets |
+| 10 | FindCoordinator | 🧪 | Unit test | Find group coordinator |
+| 11 | JoinGroup | 🧪 | Unit test | Join consumer group |
+| 12 | Heartbeat | 🧪 | Unit test | Consumer heartbeat |
+| 13 | LeaveGroup | 🚧 | No test | Leave consumer group |
+| 14 | SyncGroup | 🧪 | Unit test | Sync group assignments |
+| 15 | DescribeGroups | 🧪 | Unit test | Describe consumer groups |
+| 16 | ListGroups | 🧪 | Unit test | List all groups |
+| 17 | SaslHandshake | 🚧 | No test | SASL auth negotiation |
+| 18 | ApiVersions | 🧪 | Unit test | Get supported API versions |
+| 19 | CreateTopics | ✅ | Sarama ✓ | Create topics |
+| 20 | DeleteTopics | 🧪 | Unit test | Delete topics |
+| 21 | DeleteRecords | ❌ | - | Delete records before offset |
+| 22 | InitProducerId | ❌ | - | Init transactional producer |
+| 23 | OffsetForLeaderEpoch | ❌ | - | Get offset for leader epoch |
+| 24-28 | Transactions | ❌ | - | Transaction APIs |
+| 29-31 | ACLs | ❌ | - | Access control APIs |
+| 32 | DescribeConfigs | 🚧 | No test | Get configurations |
+| 33 | AlterConfigs | 🚧 | Skipped | Modify configurations |
+| 34-35 | LogDirs | ❌ | - | Log directory APIs |
+| 36 | SaslAuthenticate | ❌ | - | SASL authentication |
+| 37 | CreatePartitions | ❌ | - | Add partitions |
+| 38-41 | DelegationTokens | ❌ | - | Token-based auth |
+| 42 | DeleteGroups | ❌ | - | Delete consumer groups |
 
 ---
 
@@ -170,11 +176,12 @@ Comparison of Kafka features vs Quafka implementation status.
 
 | Client | Status | Notes |
 |--------|--------|-------|
-| Sarama (Go) | ✅ | Tested with IBM/sarama |
-| librdkafka | 🚧 | Should work, needs testing |
-| kafka-python | 🚧 | Should work, needs testing |
-| KafkaJS | 🚧 | Should work, needs testing |
-| Java Client | 🚧 | Should work, needs testing |
+| Sarama (Go) | ✅ | Verified: Produce/Consume/Metadata works |
+| Sarama ConsumerGroup | 🚧 | NOT TESTED - consumer group APIs unit tested only |
+| librdkafka | ❌ | Not tested |
+| kafka-python | ❌ | Not tested |
+| KafkaJS | ❌ | Not tested |
+| Java Client | ❌ | Not tested |
 
 ---
 
@@ -193,19 +200,30 @@ Comparison of Kafka features vs Quafka implementation status.
 
 ## Summary
 
-| Category | Implemented | Partial | Not Implemented |
-|----------|-------------|---------|-----------------|
-| Core Messaging | 2 | 1 | 2 |
-| Topics & Partitions | 5 | 2 | 1 |
-| Consumer Groups | 11 | 0 | 2 |
-| Cluster Management | 7 | 1 | 0 |
-| Replication | 2 | 3 | 2 |
-| Storage & Retention | 8 | 0 | 0 |
-| Security | 0 | 1 | 7 |
-| Transactions | 0 | 0 | 6 |
-| **Total** | **35** | **8** | **20** |
+| Category | Verified ✅ | Unit Tested 🧪 | Partial 🚧 | Not Implemented ❌ |
+|----------|-------------|----------------|------------|-------------------|
+| Core Messaging | 2 | 0 | 1 | 2 |
+| Topics & Partitions | 2 | 3 | 2 | 1 |
+| Consumer Groups | 0 | 9 | 2 | 2 |
+| Cluster Management | 0 | 4 | 4 | 0 |
+| Replication | 0 | 2 | 3 | 2 |
+| Storage & Retention | 0 | 8 | 0 | 0 |
+| Security | 0 | 0 | 1 | 7 |
+| Transactions | 0 | 0 | 0 | 6 |
+
+### What's Actually Verified with Kafka Client (Sarama):
+- ✅ Produce messages
+- ✅ Fetch/Consume messages  
+- ✅ Metadata (cluster, topics, partitions)
+- ✅ CreateTopics
+
+### What Needs Real Client Testing:
+- 🧪 Consumer Groups (JoinGroup, SyncGroup, Heartbeat, etc.)
+- 🧪 Offset management (Commit, Fetch)
+- 🧪 DeleteTopics
+- 🧪 ListOffsets
 
 ---
 
-*Last updated: December 2025*
+*Last updated: January 2025 (audited)*
 
