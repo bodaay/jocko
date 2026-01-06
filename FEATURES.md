@@ -44,20 +44,20 @@ Comparison of Kafka features vs Quafka implementation status.
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Find Coordinator | 🧪 | Locate group coordinator broker |
-| Join Group | 🧪 | Consumer joins a consumer group |
-| Sync Group | 🧪 | Synchronize partition assignments |
-| Leave Group | 🚧 | Consumer leaves the group (no test) |
-| Heartbeat | 🧪 | Keep consumer session alive |
+| Find Coordinator | ✅ | Locate group coordinator broker |
+| Join Group | ✅ | Consumer joins a consumer group |
+| Sync Group | ✅ | Synchronize partition assignments |
+| Leave Group | ✅ | Consumer leaves the group |
+| Heartbeat | ✅ | Keep consumer session alive |
 | List Groups | 🧪 | List all consumer groups |
 | Describe Groups | 🧪 | Get group members and state |
 | Delete Groups | ❌ | Remove inactive consumer groups |
-| Offset Commit | 🧪 | Commit consumed offsets |
-| Offset Fetch | 🧪 | Retrieve committed offsets |
+| Offset Commit | ✅ | Commit consumed offsets |
+| Offset Fetch | ✅ | Retrieve committed offsets |
 | Consumer Rebalance | 🚧 | Redistribute partitions on member change |
 | Static Membership | ❌ | Persistent consumer identity across restarts |
 
-> ⚠️ **Consumer group APIs are unit tested but NOT verified with real Kafka client (Sarama ConsumerGroup)**
+> ✅ **Consumer group APIs verified with Sarama ConsumerGroup (Jan 6, 2026)**
 
 ---
 
@@ -144,17 +144,17 @@ Comparison of Kafka features vs Quafka implementation status.
 | 5 | StopReplica | 🚧 | No test | Internal: stop replica |
 | 6 | UpdateMetadata | 🚧 | No test | Internal: propagate metadata |
 | 7 | ControlledShutdown | 🚧 | No test | Graceful shutdown |
-| 8 | OffsetCommit | 🧪 | Unit test | Commit consumer offsets |
-| 9 | OffsetFetch | 🧪 | Unit test | Fetch consumer offsets |
-| 10 | FindCoordinator | 🧪 | Unit test | Find group coordinator |
-| 11 | JoinGroup | 🧪 | Unit test | Join consumer group |
-| 12 | Heartbeat | 🧪 | Unit test | Consumer heartbeat |
-| 13 | LeaveGroup | 🚧 | No test | Leave consumer group |
-| 14 | SyncGroup | 🧪 | Unit test | Sync group assignments |
+| 8 | OffsetCommit | ✅ | Sarama ✓ | Commit consumer offsets |
+| 9 | OffsetFetch | ✅ | Sarama ✓ | Fetch consumer offsets |
+| 10 | FindCoordinator | ✅ | Sarama ✓ | Find group coordinator |
+| 11 | JoinGroup | ✅ | Sarama ✓ | Join consumer group |
+| 12 | Heartbeat | ✅ | Sarama ✓ | Consumer heartbeat |
+| 13 | LeaveGroup | ✅ | Sarama ✓ | Leave consumer group |
+| 14 | SyncGroup | ✅ | Sarama ✓ | Sync group assignments |
 | 15 | DescribeGroups | 🧪 | Unit test | Describe consumer groups |
 | 16 | ListGroups | 🧪 | Unit test | List all groups |
 | 17 | SaslHandshake | 🚧 | No test | SASL auth negotiation |
-| 18 | ApiVersions | 🧪 | Unit test | Get supported API versions |
+| 18 | ApiVersions | ✅ | Sarama ✓ | Get supported API versions |
 | 19 | CreateTopics | ✅ | Sarama ✓ | Create topics |
 | 20 | DeleteTopics | 🧪 | Unit test | Delete topics |
 | 21 | DeleteRecords | ❌ | - | Delete records before offset |
@@ -177,7 +177,7 @@ Comparison of Kafka features vs Quafka implementation status.
 | Client | Status | Notes |
 |--------|--------|-------|
 | Sarama (Go) | ✅ | Verified: Produce/Consume/Metadata works |
-| Sarama ConsumerGroup | 🚧 | NOT TESTED - consumer group APIs unit tested only |
+| Sarama ConsumerGroup | ✅ | Verified: Full consumer group flow works (Jan 6, 2026) |
 | librdkafka | ❌ | Not tested |
 | kafka-python | ❌ | Not tested |
 | KafkaJS | ❌ | Not tested |
@@ -204,7 +204,7 @@ Comparison of Kafka features vs Quafka implementation status.
 |----------|-------------|----------------|------------|-------------------|
 | Core Messaging | 2 | 0 | 1 | 2 |
 | Topics & Partitions | 2 | 3 | 2 | 1 |
-| Consumer Groups | 0 | 9 | 2 | 2 |
+| Consumer Groups | 7 | 2 | 1 | 2 |
 | Cluster Management | 0 | 4 | 4 | 0 |
 | Replication | 0 | 2 | 3 | 2 |
 | Storage & Retention | 0 | 8 | 0 | 0 |
@@ -216,14 +216,16 @@ Comparison of Kafka features vs Quafka implementation status.
 - ✅ Fetch/Consume messages  
 - ✅ Metadata (cluster, topics, partitions)
 - ✅ CreateTopics
+- ✅ **Consumer Groups** (FindCoordinator, JoinGroup, SyncGroup, Heartbeat, LeaveGroup)
+- ✅ **Offset Management** (OffsetCommit, OffsetFetch)
+- ✅ ApiVersions
 
 ### What Needs Real Client Testing:
-- 🧪 Consumer Groups (JoinGroup, SyncGroup, Heartbeat, etc.)
-- 🧪 Offset management (Commit, Fetch)
 - 🧪 DeleteTopics
 - 🧪 ListOffsets
+- 🧪 DescribeGroups, ListGroups
 
 ---
 
-*Last updated: January 2025 (audited)*
+*Last updated: January 6, 2026*
 
