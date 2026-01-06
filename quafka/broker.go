@@ -1226,13 +1226,37 @@ func (b *Broker) handleOffsetFetch(ctx *Context, req *protocol.OffsetFetchReques
 	res := new(protocol.OffsetFetchResponse)
 	res.APIVersion = req.Version()
 
+	// Helper to build error response with all requested partitions
+	buildErrorResponse := func(errorCode int16) *protocol.OffsetFetchResponse {
+		res.Responses = make([]protocol.OffsetFetchTopicResponse, len(req.Topics))
+		for i, topicReq := range req.Topics {
+			topicRes := protocol.OffsetFetchTopicResponse{
+				Topic:      topicReq.Topic,
+				Partitions: make([]protocol.OffsetFetchPartition, len(topicReq.Partitions)),
+			}
+			for j, partitionID := range topicReq.Partitions {
+				topicRes.Partitions[j] = protocol.OffsetFetchPartition{
+					Partition: partitionID,
+					Offset:    -1,
+					Metadata:  nil,
+					ErrorCode: errorCode,
+				}
+			}
+			res.Responses[i] = topicRes
+		}
+		// Set top-level error code for v2+
+		if res.APIVersion >= 2 {
+			res.ErrorCode = errorCode
+		}
+		return res
+	}
+
 	// Validate coordinator
 	state := b.fsm.State()
 	topic, err := b.offsetsTopic(ctx)
 	if err != nil {
 		log.Error.Printf("broker/%d: offset fetch error getting offsets topic: %v", b.config.ID, err)
-		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0)
-		return res
+		return buildErrorResponse(protocol.ErrCoordinatorLoadInProgress.Code())
 	}
 
 	// Calculate partition for this group
@@ -1242,23 +1266,20 @@ func (b *Broker) handleOffsetFetch(ctx *Context, req *protocol.OffsetFetchReques
 	_, p, err := state.GetPartition(OffsetsTopicName, partitionID)
 	if err != nil || p == nil {
 		log.Error.Printf("broker/%d: offset fetch error getting partition: %v", b.config.ID, err)
-		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0)
-		return res
+		return buildErrorResponse(protocol.ErrCoordinatorLoadInProgress.Code())
 	}
 
 	// Check if this broker is the leader
 	if p.Leader != b.config.ID {
 		log.Debug.Printf("broker/%d: offset fetch - not leader, leader is %d", b.config.ID, p.Leader)
-		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0)
-		return res
+		return buildErrorResponse(protocol.ErrNotCoordinator.Code())
 	}
 
 	// Get the replica
 	replica, err := b.replicaLookup.Replica(OffsetsTopicName, partitionID)
 	if err != nil || replica == nil || replica.Log == nil {
 		log.Error.Printf("broker/%d: offset fetch error getting replica: %v", b.config.ID, err)
-		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0)
-		return res
+		return buildErrorResponse(protocol.ErrCoordinatorLoadInProgress.Code())
 	}
 
 	// Read all offset commit messages from the offsets topic partition
@@ -1267,8 +1288,7 @@ func (b *Broker) handleOffsetFetch(ctx *Context, req *protocol.OffsetFetchReques
 	reader, err := replica.Log.NewReader(oldestOffset, 10*1024*1024) // Read up to 10MB
 	if err != nil {
 		log.Error.Printf("broker/%d: offset fetch error creating reader: %v", b.config.ID, err)
-		res.Responses = make([]protocol.OffsetFetchTopicResponse, 0)
-		return res
+		return buildErrorResponse(protocol.ErrCoordinatorLoadInProgress.Code())
 	}
 
 	// Read and parse offset commit messages
@@ -1789,7 +1809,11 @@ func (b *Broker) offsetsTopic(ctx *Context) (topic *structs.Topic, err error) {
 	}
 
 	// doesn't exist so let's create it
-	partitions, err := b.buildPartitions(OffsetsTopicName, 50, b.config.OffsetsTopicReplicationFactor)
+	numPartitions := b.config.OffsetsTopicNumPartitions
+	if numPartitions <= 0 {
+		numPartitions = int32(OffsetsTopicNumPartitions) // Use default from constant
+	}
+	partitions, err := b.buildPartitions(OffsetsTopicName, numPartitions, b.config.OffsetsTopicReplicationFactor)
 	if err != protocol.ErrNone {
 		return nil, err
 	}
@@ -1809,6 +1833,32 @@ func (b *Broker) offsetsTopic(ctx *Context) (topic *structs.Topic, err error) {
 			return nil, err
 		}
 	}
+
+	// Start replicas for the offsets topic partitions via LeaderAndISR
+	// This ensures replicas are ready when FindCoordinator returns
+	partitionStates := make([]*protocol.PartitionState, 0, len(partitions))
+	for _, p := range partitions {
+		partitionStates = append(partitionStates, &protocol.PartitionState{
+			Topic:     OffsetsTopicName,
+			Partition: p.Partition,
+			Leader:    p.Leader,
+			ISR:       p.ISR,
+			Replicas:  p.AR,
+		})
+	}
+	if len(partitionStates) > 0 {
+		leaderAndISRReq := &protocol.LeaderAndISRRequest{
+			ControllerID:    b.config.ID,
+			PartitionStates: partitionStates,
+		}
+		res := b.handleLeaderAndISR(ctx, leaderAndISRReq)
+		for _, pRes := range res.Partitions {
+			if pRes.ErrorCode != protocol.ErrNone.Code() {
+				log.Error.Printf("broker/%d: LeaderAndISR failed for offsets topic partition %d: %d", b.config.ID, pRes.Partition, pRes.ErrorCode)
+			}
+		}
+	}
+
 	return
 }
 

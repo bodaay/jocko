@@ -31,6 +31,7 @@ type Config struct {
 	LeaveDrainTime                time.Duration
 	ReconcileInterval             time.Duration
 	OffsetsTopicReplicationFactor int16
+	OffsetsTopicNumPartitions     int32 // Number of partitions for __consumer_offsets topic (default 50)
 }
 
 // DefaultConfig creates/returns a default configuration.
@@ -48,6 +49,7 @@ func DefaultConfig() *Config {
 		LeaveDrainTime:                5 * time.Second,
 		ReconcileInterval:             60 * time.Second,
 		OffsetsTopicReplicationFactor: 3,
+		OffsetsTopicNumPartitions:     50, // Kafka default
 	}
 
 	conf.SerfLANConfig.ReconnectTimeout = 3 * 24 * time.Hour

@@ -10,7 +10,7 @@
 ### Current Session Goals
 - [x] Write consumer group integration test using Sarama ConsumerGroup API
 - [x] Fix protocol encoding issues discovered during testing
-- [ ] Get consumer group test to pass (in progress)
+- [x] Get consumer group test to pass ✅ **DONE!**
 
 ---
 
@@ -32,11 +32,15 @@
 | State Transition | `quafka/broker.go` | handleJoinGroup now transitions to CompletingRebalance |
 | GroupProtocol | `quafka/broker.go` | handleJoinGroup now sets GroupProtocol in response |
 | Leader Assignment | `quafka/broker.go` | handleSyncGroup now returns leader's assignment (was nil) |
+| OffsetFetch Error Response | `quafka/broker.go` | Returns all requested partitions with error codes instead of empty |
+| Offsets Topic Replicas | `quafka/broker.go` | `offsetsTopic()` now starts replicas via LeaderAndISR |
+| Offsets Partitions Config | `quafka/config/config.go` | Added `OffsetsTopicNumPartitions` config option |
 
 ### Test Infrastructure (Jan 6, 2026)
 - Created `TestConsumerGroup` in `quafka/server_test.go`
 - Reduced `OffsetsTopicReplicationFactor` to 1 for single-node tests
-- Added wait time for replica creation
+- Reduced `OffsetsTopicNumPartitions` to 10 for faster test startup
+- **TestConsumerGroup now PASSES** ✅
 
 ### Prior Work (Before Jan 6)
 - Kafka client compatibility fixes (MetadataRequest/Response)
@@ -51,40 +55,30 @@
 
 ## 🔧 Pending Work
 
-### High Priority - Consumer Group Test
+### ~~High Priority - Consumer Group Test~~ ✅ RESOLVED
 
-#### Issue 1: Replica Timing
-**Status**: Not started  
-**Problem**: `__consumer_offsets` topic has 50 partitions created asynchronously. OffsetFetch fails when replicas aren't ready.
-```
-broker/1: offset fetch error getting replica: no replica for topic __consumer_offsets partition 46
-```
-**Possible Fixes**:
-1. Wait for replicas in FindCoordinator before returning
-2. Reduce offsets partitions for tests (currently 50)
-3. Return partitions with error codes instead of empty response
+#### ~~Issue 1: Replica Timing~~ ✅ FIXED
+**Solution**: 
+1. Added `OffsetsTopicNumPartitions` config option (default 50, tests use 10)
+2. Modified `offsetsTopic()` to call LeaderAndISR after creating partitions
+3. Replicas are now started synchronously before FindCoordinator returns
 
-#### Issue 2: Empty OffsetFetch Response  
-**Status**: Not started  
-**Problem**: When replicas fail, we return empty response. Sarama expects all requested partitions.
-```
-kafka: response did not contain all the expected topic/partition blocks
-```
-**Fix**: Modify `handleOffsetFetch` to return all requested partitions with appropriate error codes.
+#### ~~Issue 2: Empty OffsetFetch Response~~ ✅ FIXED  
+**Solution**: Modified `handleOffsetFetch` to return all requested partitions with `ErrCoordinatorLoadInProgress` or `ErrNotCoordinator` error codes instead of empty response.
 
-#### Issue 3: Consumer Never Starts Fetching
-**Status**: Investigation needed  
-**Problem**: After OffsetFetch + Heartbeat, Sarama should call Setup() and start Fetch requests, but it doesn't. The consumer group times out waiting.
-**Debugging Steps**:
-1. Add logging to see what Sarama receives
-2. Check if member assignment format is correct
-3. Compare with real Kafka response
+#### ~~Issue 3: Consumer Never Starts Fetching~~ ✅ FIXED
+**Root Cause**: Issues 1 and 2 combined - replicas not ready + empty response = Sarama gave up
+**Resolution**: With Issues 1 & 2 fixed, Sarama now successfully transitions to consuming phase.
 
 ### Medium Priority
 
-#### SyncGroupResponse Verification
-- Verify the MemberAssignment format matches Kafka's ConsumerProtocolAssignment
-- The assignment is created by Sarama client but may need specific encoding
+#### OffsetCommit Decoding Issue
+**Status**: New - observed in test logs
+**Problem**: OffsetCommit (api key 8) requests fail with "invalid array length"
+```
+server/1: correlation id: 13, api key: 8, client: sarama, size: 143: decode request failed: kafka: invalid array length
+```
+**Note**: Does not block consumer group test, but offsets may not persist correctly
 
 #### OffsetCommit Testing
 - Verify offset commits are stored correctly in `__consumer_offsets`
@@ -93,8 +87,8 @@ kafka: response did not contain all the expected topic/partition blocks
 ### Low Priority
 
 #### Performance
-- Consider reducing offsets topic partitions (50 is Kafka default, maybe overkill for tests)
-- Optimize replica creation for faster test startup
+- ~~Consider reducing offsets topic partitions~~ ✅ Done - configurable via `OffsetsTopicNumPartitions`
+- ~~Optimize replica creation for faster test startup~~ ✅ Done - replicas started in `offsetsTopic()`
 
 ---
 
@@ -138,11 +132,12 @@ QUAFKADEBUG=1 go test -v -run TestConsumerGroup ./quafka/
 
 ## 📝 Notes for Future Sessions
 
-1. **Consumer Group Flow**: FindCoordinator → JoinGroup → Metadata → SyncGroup → OffsetFetch → Heartbeat → Fetch
+1. **Consumer Group Flow**: FindCoordinator → JoinGroup → Metadata → SyncGroup → OffsetFetch → Heartbeat → Fetch ✅ Working!
 2. **Sarama Version**: Using V0_10_2_0 which requires consumer group support
-3. **The test is currently SKIPping**, not failing - protocol communication works but consumer doesn't start
+3. **TestConsumerGroup PASSES** - Consumer group integration with Sarama is working
 4. **Basic produce/consume with Sarama works** - confirms protocol fixes are sound
 5. **QSE-Service compatibility**: Protocol changes don't affect commitlog direct usage
+6. **OffsetCommit decoding**: There's still an issue with OffsetCommit request decoding (api key 8) - non-blocking but needs investigation
 
 ---
 

@@ -185,6 +185,7 @@ func TestConsumerGroup(t *testing.T) {
 		cfg.Bootstrap = true
 		cfg.BootstrapExpect = 1
 		cfg.OffsetsTopicReplicationFactor = 1 // Required for single-node cluster
+		cfg.OffsetsTopicNumPartitions = 10    // Fewer partitions for faster test startup
 	}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
