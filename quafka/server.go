@@ -248,6 +248,8 @@ func (s *Server) handleRequest(conn net.Conn) {
 
 		if err := req.Decode(d, header.APIVersion); err != nil {
 			log.Error.Printf("server/%d: %s: decode request failed: %s", s.config.ID, header, err)
+			log.Error.Printf("server/%d: raw bytes (hex): %x", s.config.ID, b)
+			log.Error.Printf("server/%d: decoder offset: %d, remaining: %d", s.config.ID, d.Offset(), len(b)-d.Offset())
 			span.LogKV("msg", "failed to decode request", "err", err)
 			span.Finish()
 			break

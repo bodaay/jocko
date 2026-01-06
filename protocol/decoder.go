@@ -117,15 +117,19 @@ func (d *ByteDecoder) ArrayLength() (int, error) {
 		d.off = len(d.b)
 		return -1, ErrInsufficientData
 	}
-	tmp := int(Encoding.Uint32(d.b[d.off:]))
+	// Read as signed int32 - Kafka uses -1 for null arrays
+	tmp := int32(Encoding.Uint32(d.b[d.off:]))
 	d.off += 4
-	if tmp > d.remaining() {
-		d.off = len(d.b)
-		return -1, ErrInsufficientData
-	} else if tmp > 2*math.MaxUint16 {
+
+	// -1 means null array - valid in Kafka protocol
+	if tmp == -1 {
+		return -1, nil
+	}
+
+	if tmp < 0 || int(tmp) > 2*math.MaxUint16 {
 		return -1, ErrInvalidArrayLength
 	}
-	return tmp, nil
+	return int(tmp), nil
 }
 
 // collections
@@ -213,20 +217,26 @@ func (d *ByteDecoder) Int32Array() ([]int32, error) {
 		d.off = len(d.b)
 		return nil, ErrInsufficientData
 	}
-	n := int(Encoding.Uint32(d.b[d.off:]))
+	// Read as signed int32 - Kafka uses -1 for null arrays
+	n := int32(Encoding.Uint32(d.b[d.off:]))
 	d.off += 4
 
-	if d.remaining() < 4*n {
-		d.off = len(d.b)
-		return nil, ErrInsufficientData
+	// -1 means null array
+	if n == -1 {
+		return nil, nil
 	}
 
 	if n == 0 {
-		return nil, nil
+		return []int32{}, nil
 	}
 
 	if n < 0 {
 		return nil, ErrInvalidArrayLength
+	}
+
+	if d.remaining() < 4*int(n) {
+		d.off = len(d.b)
+		return nil, ErrInsufficientData
 	}
 
 	ret := make([]int32, n)
@@ -242,20 +252,26 @@ func (d *ByteDecoder) Int64Array() ([]int64, error) {
 		d.off = len(d.b)
 		return nil, ErrInsufficientData
 	}
-	n := int(Encoding.Uint32(d.b[d.off:]))
+	// Read as signed int32 - Kafka uses -1 for null arrays
+	n := int32(Encoding.Uint32(d.b[d.off:]))
 	d.off += 4
 
-	if d.remaining() < 8*n {
-		d.off = len(d.b)
-		return nil, ErrInsufficientData
+	// -1 means null array
+	if n == -1 {
+		return nil, nil
 	}
 
 	if n == 0 {
-		return nil, nil
+		return []int64{}, nil
 	}
 
 	if n < 0 {
 		return nil, ErrInvalidArrayLength
+	}
+
+	if d.remaining() < 8*int(n) {
+		d.off = len(d.b)
+		return nil, ErrInsufficientData
 	}
 
 	ret := make([]int64, n)
@@ -271,11 +287,17 @@ func (d *ByteDecoder) StringArray() ([]string, error) {
 		d.off = len(d.b)
 		return nil, ErrInsufficientData
 	}
-	n := int(Encoding.Uint32(d.b[d.off:]))
+	// Read as signed int32 - Kafka uses -1 for null arrays
+	n := int32(Encoding.Uint32(d.b[d.off:]))
 	d.off += 4
 
-	if n == 0 {
+	// -1 means null array (e.g., "all topics" in MetadataRequest)
+	if n == -1 {
 		return nil, nil
+	}
+
+	if n == 0 {
+		return []string{}, nil
 	}
 
 	if n < 0 {
