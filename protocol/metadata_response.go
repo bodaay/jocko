@@ -26,6 +26,7 @@ type MetadataResponse struct {
 	APIVersion int16
 
 	Brokers       []*Broker
+	ClusterID     *string // Added for v2+ (nullable string)
 	ControllerID  int32
 	TopicMetadata []*TopicMetadata
 }
@@ -45,6 +46,12 @@ func (r *MetadataResponse) Encode(e PacketEncoder) (err error) {
 			if err = e.PutNullableString(b.Rack); err != nil {
 				return err
 			}
+		}
+	}
+	// ClusterID is included in v2+
+	if r.APIVersion >= 2 {
+		if err = e.PutNullableString(r.ClusterID); err != nil {
+			return err
 		}
 	}
 	if r.APIVersion >= 1 {
@@ -114,6 +121,13 @@ func (r *MetadataResponse) Decode(d PacketDecoder, version int16) (err error) {
 			Host:   host,
 			Port:   port,
 			Rack:   rack,
+		}
+	}
+	// ClusterID is included in v2+
+	if version >= 2 {
+		r.ClusterID, err = d.NullableString()
+		if err != nil {
+			return err
 		}
 	}
 	if version >= 1 {

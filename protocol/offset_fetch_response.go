@@ -7,7 +7,7 @@ type OffsetFetchTopicResponse struct {
 
 type OffsetFetchPartition struct {
 	Partition int32
-	Offset    int16
+	Offset    int64
 	Metadata  *string
 	ErrorCode int16
 }
@@ -16,6 +16,7 @@ type OffsetFetchResponse struct {
 	APIVersion int16
 
 	Responses []OffsetFetchTopicResponse
+	ErrorCode int16 // v2+
 }
 
 func (r *OffsetFetchResponse) Encode(e PacketEncoder) (err error) {
@@ -31,12 +32,16 @@ func (r *OffsetFetchResponse) Encode(e PacketEncoder) (err error) {
 		}
 		for _, p := range resp.Partitions {
 			e.PutInt32(p.Partition)
-			e.PutInt16(p.Offset)
+			e.PutInt64(p.Offset)
 			if err := e.PutNullableString(p.Metadata); err != nil {
 				return err
 			}
 			e.PutInt16(p.ErrorCode)
 		}
+	}
+	// ErrorCode is added in v2+
+	if r.APIVersion >= 2 {
+		e.PutInt16(r.ErrorCode)
 	}
 	return nil
 }
@@ -62,7 +67,7 @@ func (r *OffsetFetchResponse) Decode(d PacketDecoder, version int16) (err error)
 			if p.Partition, err = d.Int32(); err != nil {
 				return err
 			}
-			if p.Offset, err = d.Int16(); err != nil {
+			if p.Offset, err = d.Int64(); err != nil {
 				return err
 			}
 			if p.Metadata, err = d.NullableString(); err != nil {
@@ -71,6 +76,13 @@ func (r *OffsetFetchResponse) Decode(d PacketDecoder, version int16) (err error)
 			if p.ErrorCode, err = d.Int16(); err != nil {
 				return err
 			}
+		}
+	}
+	// ErrorCode is added in v2+
+	if version >= 2 {
+		r.ErrorCode, err = d.Int16()
+		if err != nil {
+			return err
 		}
 	}
 	return nil

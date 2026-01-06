@@ -678,6 +678,13 @@ func (b *Broker) handleJoinGroup(ctx *Context, r *protocol.JoinGroupRequest) *pr
 		group.GenerationID++
 	}
 
+	// For simplicity, transition to CompletingRebalance immediately
+	// In a real implementation, this would wait for all expected members to join
+	// or timeout after SessionTimeout
+	if group.State == structs.GroupStatePreparingRebalance {
+		group.State = structs.GroupStateCompletingRebalance
+	}
+
 	// Save group
 	_, err = b.raftApply(structs.RegisterGroupRequestType, structs.RegisterGroupRequest{
 		Group: *group,
@@ -691,6 +698,11 @@ func (b *Broker) handleJoinGroup(ctx *Context, r *protocol.JoinGroupRequest) *pr
 	res.GenerationID = group.GenerationID
 	res.LeaderID = group.LeaderID
 	res.MemberID = r.MemberID
+
+	// Set the selected protocol (use the first one from the request)
+	if len(r.GroupProtocols) > 0 {
+		res.GroupProtocol = r.GroupProtocols[0].ProtocolName
+	}
 
 	// Fill in members on response for the leader
 	if res.LeaderID == res.MemberID {
@@ -794,8 +806,10 @@ func (b *Broker) handleSyncGroup(ctx *Context, r *protocol.SyncGroupRequest) *pr
 				res.ErrorCode = protocol.ErrUnknown.Code()
 				return res
 			}
-			// Leader gets empty assignment (they already know it)
-			res.MemberAssignment = nil
+			// Leader also gets their assignment
+			if m, ok := group.Members[r.MemberID]; ok {
+				res.MemberAssignment = m.Assignment
+			}
 		} else {
 			// Non-leader member - return their assignment if available
 			if m, ok := group.Members[r.MemberID]; ok && m.Assignment != nil {
@@ -1331,16 +1345,9 @@ func (b *Broker) handleOffsetFetch(ctx *Context, req *protocol.OffsetFetchReques
 				Partitions: make([]protocol.OffsetFetchPartition, 0, len(partitions)),
 			}
 			for partitionID, value := range partitions {
-				// Note: OffsetFetchPartition.Offset is int16, but we have int64
-				// This is a limitation of the current protocol structure
-				offset := int16(value.Offset)
-				if value.Offset > int64(offset) {
-					// Offset too large for int16, use -1 to indicate no offset
-					offset = -1
-				}
 				topicRes.Partitions = append(topicRes.Partitions, protocol.OffsetFetchPartition{
 					Partition: partitionID,
-					Offset:    offset,
+					Offset:    value.Offset,
 					Metadata:  value.Metadata,
 					ErrorCode: protocol.ErrNone.Code(),
 				})
@@ -1360,13 +1367,9 @@ func (b *Broker) handleOffsetFetch(ctx *Context, req *protocol.OffsetFetchReques
 				if len(topicReq.Partitions) == 0 {
 					// Return all partitions for this topic
 					for partitionID, value := range partitions {
-						offset := int16(value.Offset)
-						if value.Offset > int64(offset) {
-							offset = -1
-						}
 						topicRes.Partitions = append(topicRes.Partitions, protocol.OffsetFetchPartition{
 							Partition: partitionID,
-							Offset:    offset,
+							Offset:    value.Offset,
 							Metadata:  value.Metadata,
 							ErrorCode: protocol.ErrNone.Code(),
 						})
@@ -1375,13 +1378,9 @@ func (b *Broker) handleOffsetFetch(ctx *Context, req *protocol.OffsetFetchReques
 					// Return only requested partitions
 					for _, partitionID := range topicReq.Partitions {
 						if value, exists := partitions[partitionID]; exists {
-							offset := int16(value.Offset)
-							if value.Offset > int64(offset) {
-								offset = -1
-							}
 							topicRes.Partitions = append(topicRes.Partitions, protocol.OffsetFetchPartition{
 								Partition: partitionID,
-								Offset:    offset,
+								Offset:    value.Offset,
 								Metadata:  value.Metadata,
 								ErrorCode: protocol.ErrNone.Code(),
 							})

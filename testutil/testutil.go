@@ -21,7 +21,7 @@ func TestConfig(t *testing.T) (string, *config.Config) {
 	config.Bootstrap = true
 	config.DataDir = dir
 	config.ID = atomic.AddInt32(&nodeID, 1)
-	config.OffsetsTopicReplicationFactor = 3
+	config.OffsetsTopicReplicationFactor = 1 // Default to 1 for tests (single broker)
 	config.SerfLANConfig.MemberlistConfig.BindAddr = "127.0.0.1"
 	config.SerfLANConfig.MemberlistConfig.BindPort = ports[1]
 	config.SerfLANConfig.MemberlistConfig.AdvertiseAddr = "127.0.0.1"

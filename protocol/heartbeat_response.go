@@ -10,6 +10,10 @@ type HeartbeatResponse struct {
 }
 
 func (r *HeartbeatResponse) Encode(e PacketEncoder) error {
+	// ThrottleTime is added in v1+
+	if r.APIVersion >= 1 {
+		e.PutInt32(int32(r.ThrottleTime / time.Millisecond))
+	}
 	e.PutInt16(r.ErrorCode)
 	return nil
 }
